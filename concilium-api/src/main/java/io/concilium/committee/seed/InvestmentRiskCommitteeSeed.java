@@ -16,16 +16,23 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
- * Seeds the Investment Risk Committee binding the 5 hardcoded agents in
- * speaking order. Runs AFTER InvestmentRiskAgentsSeed so the agents exist.
+ * Seeds the Investment Risk Committee and its 5 members from the
+ * agent library. Runs AFTER InvestmentRiskAgentsSeed.
+ *
+ * <p>Idempotent: get-or-create the committee, then get-or-create each
+ * membership row. Surviving a partial previous boot is safe — the next
+ * boot tops up missing memberships without duplicating existing ones.
  */
 @Configuration
 @Profile("!test")
 @RequiredArgsConstructor
 @Slf4j
 public class InvestmentRiskCommitteeSeed {
+
+    private static final String COMMITTEE_NAME = "Investment Risk Committee";
 
     private static final List<String> SPEAKING_ORDER = List.of(
         "Risk Manager",
@@ -43,34 +50,44 @@ public class InvestmentRiskCommitteeSeed {
             AgentProfileRepository agents) {
 
         return args -> {
-            if (committees.findByName("Investment Risk Committee").isPresent()) {
-                log.info("Investment Risk Committee already seeded — skipping");
-                return;
-            }
+            // Step 1: get-or-create the committee
+            Committee committee = committees.findByName(COMMITTEE_NAME).orElseGet(() -> {
+                log.info("Creating {} ...", COMMITTEE_NAME);
+                return committees.save(Committee.builder()
+                    .name(COMMITTEE_NAME)
+                    .description("Multi-angle risk review of structured products")
+                    .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
+                    .qaIntensity(QaIntensity.NONE)
+                    .decisionRule("CHAIR_DECIDES")
+                    .maxRevisionRounds(1)
+                    .build());
+            });
 
-            var committee = committees.save(Committee.builder()
-                .name("Investment Risk Committee")
-                .description("Multi-angle risk review of structured products")
-                .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
-                .qaIntensity(QaIntensity.NONE)
-                .decisionRule("CHAIR_DECIDES")
-                .maxRevisionRounds(1)
-                .build());
-
+            // Step 2: top up missing memberships, in speaking order
+            int addedCount = 0;
             for (int i = 0; i < SPEAKING_ORDER.size(); i++) {
-                var agentName = SPEAKING_ORDER.get(i);
-                var agent = agents.findByName(agentName).orElseThrow(
-                    () -> new IllegalStateException(
-                        "Expected agent '" + agentName + "' to exist; check seeder order."));
+                String agentName = SPEAKING_ORDER.get(i);
+                int speakingOrder = i + 1;
+                UUID agentId = agents.findByName(agentName)
+                    .orElseThrow(() -> new IllegalStateException(
+                        "Expected agent '" + agentName + "' to exist (seeder ordering issue?)"))
+                    .getId();
+
+                CommitteeMember.PK pk = new CommitteeMember.PK(committee.getId(), agentId);
+                if (members.existsById(pk)) {
+                    continue;
+                }
                 members.save(CommitteeMember.builder()
                     .committeeId(committee.getId())
-                    .agentId(agent.getId())
-                    .speakingOrder(i + 1)
+                    .agentId(agentId)
+                    .speakingOrder(speakingOrder)
                     .build());
+                addedCount++;
+                log.info("  + added member: {} (speaking order {})", agentName, speakingOrder);
             }
 
-            log.info("Seeded Investment Risk Committee with {} members",
-                members.findByCommitteeIdOrderBySpeakingOrderAsc(committee.getId()).size());
+            int totalMembers = members.findByCommitteeIdOrderBySpeakingOrderAsc(committee.getId()).size();
+            log.info("{} ready. Added: {}, total members: {}", COMMITTEE_NAME, addedCount, totalMembers);
         };
     }
 }

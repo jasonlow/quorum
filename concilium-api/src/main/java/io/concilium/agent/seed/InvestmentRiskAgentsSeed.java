@@ -13,14 +13,18 @@ import org.springframework.core.annotation.Order;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
- * Seeds the 5 Investment Risk Committee personas from BRD §6.2 if the
- * agent library is empty. Idempotent — skipped on subsequent boots.
+ * Seeds the 5 Investment Risk Committee personas from BRD §6.2.
  *
- * <p>Each system prompt is deliberately opinionated so that distinct
- * personalities produce visibly different outputs on the same topic.
- * That is PoC bet B2.
+ * <p>Idempotent <em>per agent</em>: each persona is inserted only if a
+ * row with the same name does not yet exist. Surviving a previous boot
+ * that died mid-seed is therefore safe — the next boot tops up missing
+ * rows without re-inserting the existing ones.
+ *
+ * <p>Each system prompt is deliberately opinionated so distinct personalities
+ * produce visibly different outputs on the same topic — PoC bet B2.
  */
 @Configuration
 @Profile("!test")
@@ -36,20 +40,35 @@ public class InvestmentRiskAgentsSeed {
     @Order(1)
     ApplicationRunner seedInvestmentRiskAgents(AgentProfileRepository repo) {
         return args -> {
-            if (repo.count() > 0) {
-                log.info("agent_profiles already populated ({} rows) — skipping seed", repo.count());
-                return;
-            }
-            log.info("Seeding 5 Investment Risk Committee personas...");
+            log.info("Seeding Investment Risk Committee personas (idempotent)...");
 
-            repo.save(riskManager());
-            repo.save(investmentStrategist());
-            repo.save(complianceOfficer());
-            repo.save(treasuryOps());
-            repo.save(macroEconomist());
+            int created = 0;
+            created += saveIfMissing(repo, "Risk Manager",           InvestmentRiskAgentsSeed::riskManager);
+            created += saveIfMissing(repo, "Investment Strategist",  InvestmentRiskAgentsSeed::investmentStrategist);
+            created += saveIfMissing(repo, "Compliance Officer",     InvestmentRiskAgentsSeed::complianceOfficer);
+            created += saveIfMissing(repo, "Treasury / Ops",         InvestmentRiskAgentsSeed::treasuryOps);
+            created += saveIfMissing(repo, "Macro Economist",        InvestmentRiskAgentsSeed::macroEconomist);
 
-            log.info("Seeded {} agents", repo.count());
+            log.info("Agent seed complete. Created: {}, total in library: {}", created, repo.count());
         };
+    }
+
+    /** Insert the agent if no row with that name exists. Returns 1 if inserted, 0 otherwise. */
+    private static int saveIfMissing(
+            AgentProfileRepository repo,
+            String name,
+            Supplier<AgentProfile> factory) {
+        if (repo.findByName(name).isPresent()) {
+            return 0;
+        }
+        AgentProfile a = factory.get();
+        if (!name.equals(a.getName())) {
+            throw new IllegalStateException(
+                "Persona factory mismatch: requested '" + name + "' but factory produced '" + a.getName() + "'");
+        }
+        repo.save(a);
+        log.info("  + seeded agent: {}", name);
+        return 1;
     }
 
     // ---------------------------------------------------------------------
