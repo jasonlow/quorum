@@ -8,6 +8,10 @@
 # the standard spring.ai.openai.* namespace with an overridden base-url.
 spring:
   ai:
+    # Tell Spring AI to expose only the OpenAI-compatible ChatModel as the
+    # primary bean. The Ollama starter is on the classpath but inactive.
+    model:
+      chat: openai
     openai:
       base-url: https://api.deepseek.com
       api-key: ${DEEPSEEK_API_KEY:not-set}
@@ -15,7 +19,3 @@ spring:
         options:
           model: deepseek-chat        # DeepSeek V4 chat model
           temperature: 0.7
-          # max-tokens kept generous; per-agent overrides applied in code
-    # Ollama starter is on the classpath but unused in this profile.
-    ollama:
-      enabled: false

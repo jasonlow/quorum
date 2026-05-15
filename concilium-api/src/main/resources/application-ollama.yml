@@ -7,9 +7,9 @@
 #   ollama serve   (or run via the menu-bar app)
 spring:
   ai:
-    openai:
-      # Disable the OpenAI/DeepSeek client when running offline.
-      enabled: false
+    # Active provider in this profile.
+    model:
+      chat: ollama
     ollama:
       base-url: http://localhost:11434
       chat:
