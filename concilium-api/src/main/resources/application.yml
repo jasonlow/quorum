@@ -1,0 +1,79 @@
+# Shared base configuration.
+# Profile-specific values live in application-{local,ollama,test}.yml
+spring:
+  application:
+    name: concilium-api
+  profiles:
+    default: local
+  datasource:
+    url: jdbc:postgresql://localhost:5432/concilium
+    username: concilium
+    password: concilium
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: validate    # Flyway owns the schema, JPA only validates
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  docker:
+    compose:
+      enabled: true
+      file: compose.yaml
+      lifecycle-management: start_and_stop
+  threads:
+    virtual:
+      # Java 21 virtual threads for the web layer.
+      # Orchestrator uses its own VT executor; see session.orchestrator.
+      enabled: true
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: 0.1.0-SNAPSHOT
+    description: AI Committee Platform — PoC
+
+logging:
+  level:
+    io.concilium: DEBUG
+    org.hibernate.SQL: WARN
+    org.springframework.ai: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{correlationId:-}] [%X{sessionId:-}] %logger{36} - %msg%n"
+
+# Concilium-specific config (consumed by @ConfigurationProperties in code).
+concilium:
+  llm:
+    # Model id used for the Chief of Staff role; can differ from agent default.
+    cos-model: ${CONCILIUM_COS_MODEL:deepseek-chat}
+  orchestrator:
+    max-revision-rounds: 1
+    per-agent-timeout: PT5M
+  audit:
+    keystore-path: ./data/keys/concilium.p12
+    keystore-password: ${CONCILIUM_KEYSTORE_PASSWORD:changeit}
+    payload-dir: ./data/audit

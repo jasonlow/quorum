@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Java / Maven
+**/target/
+**/HELP.md
+
+# Node / frontend
+**/node_modules/
+**/dist/
+**/build/
+
+# Local data (PoC writes signed audit JSON + keystore here)
+data/
+**/data/
+
+# Env files (never commit secrets)
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+logs/

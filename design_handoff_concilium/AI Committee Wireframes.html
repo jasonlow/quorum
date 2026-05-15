@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>AI Committee — Wireframes</title>
+<meta name="viewport" content="width=1600" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  /* Page chrome around the design_canvas */
+  html, body { margin:0; padding:0; background:#e9e2cd; }
+  body { font-family: 'Noto Sans', system-ui, sans-serif; color: var(--ink, #1f1d1a); }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<!-- Pinned React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Helpers + scenes -->
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="ui.jsx"></script>
+<script type="text/babel" src="scenes-intake.jsx"></script>
+<script type="text/babel" src="scenes-boardroom.jsx"></script>
+<script type="text/babel" src="scenes-qa.jsx"></script>
+<script type="text/babel" src="scenes-output.jsx"></script>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "phase": "mid",
+  "useCase": "risk",
+  "annos": true,
+  "boardroom": "grid",
+  "qaFormat": "thread"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Map phase name to label
+  const phaseLabel = { early:'~25 s in', mid:'~45 s in', late:'~70 s in' }[t.phase];
+  const ucLabel    = { risk:'Investment Risk', onboard:'Client Onboarding', change:'Change Triage' }[t.useCase];
+
+  const Boardroom = t.boardroom==='table' ? BoardroomTable : t.boardroom==='lanes' ? BoardroomLanes : BoardroomGrid;
+  const QA        = t.qaFormat==='table' ? SceneQATable : SceneQAThread;
+
+  return (
+    <>
+      <DesignCanvas
+        title="🏛️  AI Committee — Wireframes"
+        subtitle={`for investor review · use case: ${ucLabel} · ${phaseLabel}`}
+      >
+        {/* SECTION 1 — Intake */}
+        <DCSection id="intake" title="① Intake · the chair sets the agenda">
+          <DCArtboard id="dashboard" label="Dashboard — Quick Start &amp; recent sessions" width={1280} height={820}>
+            <SceneDashboard annos={t.annos} />
+          </DCArtboard>
+          <DCArtboard id="context" label="Convene — drop docs, no fields to fill" width={1280} height={820}>
+            <SceneContext useCase={t.useCase} annos={t.annos} />
+          </DCArtboard>
+        </DCSection>
+
+        {/* SECTION 2 — Deliberation */}
+        <DCSection id="deliberation" title="② Deliberation · the committee thinks in parallel">
+          <DCArtboard id="boardroom" label={`Boardroom — ${t.boardroom==='grid'?'card grid':t.boardroom==='table'?'round table':'swim lanes'} · ${t.phase} phase`} width={1280} height={820}>
+            <Boardroom useCase={t.useCase} phase={t.phase} annos={t.annos} />
+          </DCArtboard>
+          <DCArtboard id="cos-gate" label="CoS quality gate — editor, not scribe" width={1280} height={820}>
+            <SceneCoSGate useCase={t.useCase} annos={t.annos} />
+          </DCArtboard>
+        </DCSection>
+
+        {/* SECTION 3 — Discussion */}
+        <DCSection id="discussion" title="③ Discussion · cross-functional Q&amp;A">
+          <DCArtboard id="qa" label={`Q&A — ${t.qaFormat==='thread'?'threaded':'topic×agent matrix'}`} width={1280} height={820}>
+            <QA useCase={t.useCase} annos={t.annos} />
+          </DCArtboard>
+        </DCSection>
+
+        {/* SECTION 4 — Decision */}
+        <DCSection id="decision" title="④ Decision · the chair signs, the trail persists">
+          <DCArtboard id="brief" label="Consolidated brief — recommendation, conditions, dissent" width={1280} height={820}>
+            <SceneBrief useCase={t.useCase} annos={t.annos} />
+          </DCArtboard>
+        </DCSection>
+
+        {/* SECTION 5 — Authoring */}
+        <DCSection id="authoring" title="⑤ Authoring · agents are first-class, not prompts">
+          <DCArtboard id="agent-builder" label="Agent Builder — persona · authority · ideology · boundaries" width={1280} height={820}>
+            <SceneAgentBuilder annos={t.annos} />
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Use case (changes data across all screens)">
+          <TweakRadio
+            label="Scenario"
+            value={t.useCase}
+            options={[
+              { value:'risk',    label:'Investment Risk' },
+              { value:'onboard', label:'Client Onboarding' },
+              { value:'change',  label:'Change Triage' },
+            ]}
+            onChange={(v)=>setTweak('useCase', v)}
+          />
+        </TweakSection>
+
+        <TweakSection title="Boardroom — live deliberation">
+          <TweakSelect
+            label="Layout variant"
+            value={t.boardroom}
+            options={[
+              { value:'grid',   label:'Card grid (default)' },
+              { value:'table',  label:'Round table (boardroom metaphor)' },
+              { value:'lanes',  label:'Swim-lane timeline (ops view)' },
+            ]}
+            onChange={(v)=>setTweak('boardroom', v)}
+          />
+          <TweakRadio
+            label="Phase"
+            value={t.phase}
+            options={[
+              { value:'early', label:'early' },
+              { value:'mid',   label:'mid' },
+              { value:'late',  label:'late' },
+            ]}
+            onChange={(v)=>setTweak('phase', v)}
+          />
+        </TweakSection>
+
+        <TweakSection title="Q&amp;A discussion">
+          <TweakRadio
+            label="Format"
+            value={t.qaFormat}
+            options={[
+              { value:'thread', label:'threaded' },
+              { value:'table',  label:'topic × agent' },
+            ]}
+            onChange={(v)=>setTweak('qaFormat', v)}
+          />
+        </TweakSection>
+
+        <TweakSection title="Annotations">
+          <TweakToggle
+            label="Show designer notes"
+            value={t.annos}
+            onChange={(v)=>setTweak('annos', v)}
+          />
+          <div style={{ fontFamily:'inherit', fontSize:12, opacity:0.7, lineHeight:1.4 }}>
+            Red &amp; blue handwritten arrows call out the conceptual moves on each screen — toggle off for a clean pitch view.
+          </div>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

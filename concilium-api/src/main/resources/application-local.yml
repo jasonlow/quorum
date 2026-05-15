@@ -1,0 +1,21 @@
+# Local development profile — default profile.
+# Uses DeepSeek V4 (deepseek-chat) via Spring AI's OpenAI-compatible client.
+#
+# Required env var:
+#   DEEPSEEK_API_KEY=sk-...
+#
+# DeepSeek's API is OpenAI-wire-compatible, so we configure it under
+# the standard spring.ai.openai.* namespace with an overridden base-url.
+spring:
+  ai:
+    openai:
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:not-set}
+      chat:
+        options:
+          model: deepseek-chat        # DeepSeek V4 chat model
+          temperature: 0.7
+          # max-tokens kept generous; per-agent overrides applied in code
+    # Ollama starter is on the classpath but unused in this profile.
+    ollama:
+      enabled: false
