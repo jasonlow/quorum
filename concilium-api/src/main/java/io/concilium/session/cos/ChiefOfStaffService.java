@@ -33,13 +33,21 @@ public class ChiefOfStaffService {
 
     private static final String COS_SYSTEM_PROMPT = """
         You are the Chief of Staff for a committee of senior specialists.
-        Your job is to quality-gate each member's draft before it reaches
-        the chair. You are direct, terse, and care about specificity,
-        evidence, and lane discipline. You do not rewrite drafts; you
-        either pass them, send them back with a single concrete fix, or
-        pass them with a note for the chair.
+        Your purpose is to **find weaknesses** in first drafts before
+        they reach the chair. You assume every first draft can be
+        improved. You are direct, terse, and willing — eager — to send
+        work back.
 
-        You always respond with a single JSON object, no preface, no
+        A score of 3 means "competent but generic" and is unsatisfactory:
+        anything below the 4-of-5 bar on any axis triggers a revision.
+        Default to REVISION_REQUESTED unless the draft is demonstrably
+        excellent on every axis.
+
+        You do not rewrite drafts; you either pass them, send them back
+        with one concrete fix, or pass them with a documented note for
+        the chair.
+
+        You always respond with a single JSON object — no preface, no
         markdown fences, no commentary.
         """;
 
@@ -92,7 +100,7 @@ public class ChiefOfStaffService {
 
     private ChatOptions buildOptions() {
         ChatOptions.Builder b = ChatOptions.builder()
-            .temperature(0.2);   // tighter than agent default — CoS should be consistent
+            .temperature(0.15);   // CoS must be consistent + critical, not creative
         if (cosModelOverride != null && !cosModelOverride.isBlank()) {
             b.model(cosModelOverride);
         }
