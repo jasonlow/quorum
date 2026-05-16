@@ -28,16 +28,41 @@ public class AgentInvoker {
 
     public AgentDraft invoke(AgentProfile agent, String committeeName,
                              String topic, String contextMd) {
+        return invokeInternal(agent, committeeName, topic, contextMd, null, null);
+    }
+
+    /**
+     * Re-invoke an agent with the CoS's revision instruction attached.
+     * The prior draft is shown so the agent can preserve what was good
+     * and fix what was flagged.
+     */
+    public AgentDraft invokeRevision(AgentProfile agent, String committeeName,
+                                     String topic, String contextMd,
+                                     String previousDraft, String revisionInstruction) {
+        return invokeInternal(agent, committeeName, topic, contextMd,
+            previousDraft, revisionInstruction);
+    }
+
+    // ------------------------------------------------------------------
+
+    private AgentDraft invokeInternal(AgentProfile agent, String committeeName,
+                                      String topic, String contextMd,
+                                      String previousDraft, String revisionInstruction) {
         var client = routing.clientFor(agent);
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("committeeName", committeeName);
         vars.put("topic", topic);
         vars.put("contextMd", contextMd);
+        if (revisionInstruction != null && !revisionInstruction.isBlank()) {
+            vars.put("revisionInstruction", revisionInstruction);
+            vars.put("previousDraft", previousDraft == null ? "" : previousDraft);
+        }
         String userMessage = prompts.render("agent-user-prompt", vars);
 
-        log.debug("Invoking agent '{}' (temp={}, modelOverride={})",
-            agent.getName(), agent.getTemperature(), agent.getModelOverride());
+        log.debug("Invoking agent '{}' (temp={}, modelOverride={}, revision={})",
+            agent.getName(), agent.getTemperature(), agent.getModelOverride(),
+            revisionInstruction != null);
 
         Instant t0 = Instant.now();
         ChatResponse response = client.prompt()

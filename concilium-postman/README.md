@@ -47,12 +47,30 @@ requests freely.
 2. Sessions
    ├─ Convene (ETH Accumulator…)    → saves sessionId
    ├─ Get session state             → see all 5 agents in QUEUED
-   ├─ Run — Risk Manager            → expect SUBMITTED, draft in console
+   ├─ Deliberate (parallel)         → kicks off all 5 agents + CoS + brief
+   ├─ Stream events (SSE)           → live event feed (open BEFORE deliberate)
+   ├─ Get brief                     → consolidated recommendation (after stream closes)
+   │
+   │   The "Run — <persona>" requests below are the W1 single-agent dev path
+   │   — handy for quick prompt iteration but bypasses CoS + brief.
+   │
+   ├─ Run — Risk Manager
    ├─ Run — Investment Strategist
    ├─ Run — Compliance Officer
    ├─ Run — Treasury / Ops
    └─ Run — Macro Economist
 ```
+
+### Full-flow demo
+
+The headline path through the collection (~20–40s end-to-end):
+
+1. **List agents** — populates per-persona IDs
+2. **Convene** — saves sessionId
+3. Open **Stream events (SSE)** in one tab → click Send → wait for `hello`
+4. In another tab, **Deliberate** → 202 returned, orchestrator running in the background
+5. Watch the Stream tab — events fire as agents progress through THINKING → SUBMITTED → CoS review → PASSED / REVISING → final state
+6. After `session.completed` event, **Get brief** in a fresh tab → console pretty-prints the headline + consensus + disagreements + per-agent breakdown
 
 ## Reading agent drafts in Postman
 

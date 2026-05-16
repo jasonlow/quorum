@@ -158,6 +158,96 @@
           ]
         },
         {
+          "name": "Deliberate — parallel orchestrator (all 5 agents)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/deliberate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "deliberate"]
+            },
+            "description": "Kicks off the full parallel orchestrator: all 5 agents fan out on virtual threads, each draft goes through the Chief of Staff quality gate (max 1 revision round), and a consolidated brief is built at the end.\n\nReturns **202 Accepted** immediately. To watch live progress, open the **Stream events** request (next item) in a separate tab BEFORE running this — SSE events fire across:\n\n- `phase.changed` — DELIBERATING → BRIEFED\n- `agent.state.changed` — QUEUED → THINKING → SUBMITTED → REVISING → PASSED / PASSED_WITH_NOTE\n- `agent.draft.done` — model + tokens + latency per agent\n- `cos.revision_requested` — CoS sent a draft back\n- `cos.review.passed` / `cos.review.passed_with_note` — terminal quality verdicts\n- `brief.ready` — consolidator finished\n- `session.completed` — orchestrator finished, includes wallClockMs + deliberationMs\n\nAfter the stream closes, use **Get brief** to read the consolidated brief.\n\n**Bet B1 check:** wallClockMs should be roughly max(per-agent latencyMs) × 1.2, NOT sum of latencies."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 202 Accepted', () => pm.response.to.have.status(202));",
+                  "const body = pm.response.json();",
+                  "pm.test('streamUrl returned', () => pm.expect(body.streamUrl).to.be.a('string'));",
+                  "console.log('Deliberation kicked off. Stream URL:', body.streamUrl);",
+                  "console.log('Subscribe to the Stream events request in a separate tab to watch live events.');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stream events (SSE)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "text/event-stream" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/stream",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "stream"]
+            },
+            "description": "Subscribe to the live SSE event stream for this session.\n\n**Postman 11+** renders SSE responses live in the body panel — open this request, hit **Send**, and watch events arrive. Keep this tab open BEFORE you hit **Deliberate** in another tab so you don't miss the early events.\n\nEvent types: `hello`, `phase.changed`, `agent.state.changed`, `agent.draft.done`, `cos.revision_requested`, `cos.review.passed`, `cos.review.passed_with_note`, `agent.failed`, `brief.ready`, `session.completed`.\n\nThe stream closes automatically when the session reaches a terminal state, or after 15 minutes of inactivity.\n\nIf your Postman version doesn't render SSE inline, use curl in a separate terminal:\n```\ncurl -N -H 'Accept: text/event-stream' {{baseUrl}}/api/v1/sessions/{{sessionId}}/stream\n```"
+          }
+        },
+        {
+          "name": "Get brief (consolidated recommendation)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/brief",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "brief"]
+            },
+            "description": "Retrieve the consolidated brief built by the Chief of Staff after deliberation completes.\n\nFields:\n- `recommendation` — APPROVE / APPROVE_WITH_CONDITIONS / REJECT / ESCALATE\n- `confidence` — HIGH / MEDIUM / LOW\n- `body.headline` — one-line summary\n- `body.consensus` — bullet list of points all/most agents agree on\n- `body.disagreements[]` — surfaced conflicts with each agent's stance + chair suggestion\n- `body.agentBreakdown[]` — per-agent summary + their verdict\n\nReturns **404** if deliberation hasn't completed (no brief yet)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('has recommendation', () => pm.expect(b.recommendation).to.be.a('string'));",
+                  "pm.test('has confidence', () => pm.expect(b.confidence).to.be.a('string'));",
+                  "console.log('============================================================');",
+                  "console.log('RECOMMENDATION:', b.recommendation, '(confidence:', b.confidence + ')');",
+                  "if (b.body && b.body.headline) console.log('HEADLINE:', b.body.headline);",
+                  "if (b.body && b.body.consensus) {",
+                  "  console.log('--- CONSENSUS ---');",
+                  "  b.body.consensus.forEach(c => console.log('  ✓', c));",
+                  "}",
+                  "if (b.body && b.body.disagreements) {",
+                  "  console.log('--- DISAGREEMENTS ---');",
+                  "  b.body.disagreements.forEach(d => {",
+                  "    console.log('  ⚠', d.topic);",
+                  "    (d.positions || []).forEach(p => console.log('     -', p.agent + ':', p.stance));",
+                  "    if (d.chairSuggestion) console.log('     → chair:', d.chairSuggestion);",
+                  "  });",
+                  "}",
+                  "if (b.body && b.body.agentBreakdown) {",
+                  "  console.log('--- AGENT BREAKDOWN ---');",
+                  "  b.body.agentBreakdown.forEach(a => console.log(`  ${(a.agent||'').padEnd(24)} ${a.verdict || ''}  ${a.summary || ''}`));",
+                  "}",
+                  "console.log('============================================================');"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Run — Risk Manager",
           "request": {
             "method": "POST",

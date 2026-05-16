@@ -10,6 +10,21 @@ You are participating in a deliberation of the **{{committeeName}}**.
 {{contextMd}}
 {{/if}}
 
+{{#if revisionInstruction}}
+## Revision requested by the Chief of Staff
+
+Your prior draft:
+---
+{{previousDraft}}
+---
+
+The Chief of Staff has flagged the following issue:
+
+{{revisionInstruction}}
+
+Produce a revised version that addresses the feedback. Keep what was
+good; fix what was flagged. Length: 200–400 words.
+{{else}}
 ## Your task
 
 Apply your role, expertise, and disciplined point of view to the topic
@@ -28,3 +43,4 @@ Constraints:
   (recommendation, score, verdict, flag — whichever your role uses).
 
 Length: 200–400 words.
+{{/if}}

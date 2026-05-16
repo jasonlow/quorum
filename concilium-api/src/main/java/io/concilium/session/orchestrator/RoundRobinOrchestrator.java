@@ -7,6 +7,13 @@ import io.concilium.committee.domain.CommitteeMember;
 import io.concilium.committee.store.CommitteeMemberRepository;
 import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.platform.telemetry.CorrelationContext;
+import io.concilium.brief.domain.Brief;
+import io.concilium.brief.service.Consolidator;
+import io.concilium.session.cos.ChiefOfStaffService;
+import io.concilium.session.cos.CosReview;
+import io.concilium.session.cos.CosReviewRepository;
+import io.concilium.session.cos.CosReviewResult;
+import io.concilium.session.cos.CosVerdict;
 import io.concilium.session.domain.AgentRunState;
 import io.concilium.session.domain.Phase;
 import io.concilium.session.domain.Session;
@@ -57,6 +64,9 @@ public class RoundRobinOrchestrator {
     private final CommitteeMemberRepository members;
     private final AgentProfileRepository agents;
     private final AgentInvoker invoker;
+    private final ChiefOfStaffService cos;
+    private final CosReviewRepository cosReviews;
+    private final Consolidator consolidator;
     private final SseChannelManager sse;
 
     /**
@@ -100,14 +110,36 @@ public class RoundRobinOrchestrator {
             }
         }
 
-        long wallMs = Duration.between(t0, Instant.now()).toMillis();
-        log.info("Deliberation phase complete: session={} agents={} wallClock={}ms",
-            sessionId, roster.size(), wallMs);
+        long deliberationMs = Duration.between(t0, Instant.now()).toMillis();
+        log.info("Deliberation + CoS gate complete: session={} agents={} wallClock={}ms",
+            sessionId, roster.size(), deliberationMs);
 
-        // CoS gate lands in W2-T07. For now we close at BRIEFED with raw drafts.
+        // ---- BRIEF ----
+        Brief brief;
+        try {
+            brief = consolidator.build(sessionId);
+            sse.send(sessionId, SseEventType.BRIEF_READY, Map.of(
+                "sessionId", sessionId,
+                "briefId", brief.getId(),
+                "recommendation", brief.getRecommendation() == null ? "" : brief.getRecommendation(),
+                "confidence", brief.getConfidence() == null ? "" : brief.getConfidence()
+            ));
+        } catch (RuntimeException e) {
+            log.error("Brief consolidation failed: session={}", sessionId, e);
+            sse.send(sessionId, SseEventType.AGENT_FAILED, Map.of(
+                "sessionId", sessionId,
+                "stage", "brief",
+                "reason", e.getMessage() == null ? "unknown" : e.getMessage()
+            ));
+        }
+
+        long wallMs = Duration.between(t0, Instant.now()).toMillis();
         transitionPhase(reload(sessionId), Phase.BRIEFED);
-        sse.send(sessionId, SseEventType.SESSION_COMPLETED,
-            Map.of("sessionId", sessionId, "wallClockMs", wallMs));
+        sse.send(sessionId, SseEventType.SESSION_COMPLETED, Map.of(
+            "sessionId", sessionId,
+            "wallClockMs", wallMs,
+            "deliberationMs", deliberationMs
+        ));
         sse.closeSession(sessionId);
     }
 
@@ -115,31 +147,139 @@ public class RoundRobinOrchestrator {
 
     private void runOneAgent(UUID sessionId, Committee committee, UUID agentId) {
         AgentProfile agent = agents.findById(agentId).orElseThrow();
+        Session s = reload(sessionId);
+        String topic = s.getTopic();
+        String context = s.getContextMd();
+        int maxRevisions = committee.getMaxRevisionRounds();   // PoC: 1
 
-        // QUEUED -> THINKING
+        // ---- THINKING ----
         updateState(sessionId, agentId, AgentRunState.THINKING, 25);
         emitAgentState(sessionId, agent, AgentRunState.THINKING, 25);
 
         AgentDraft draft;
         try {
-            Session s = reload(sessionId);
-            draft = invoker.invoke(agent, committee.getName(),
-                s.getTopic(), s.getContextMd());
+            draft = invoker.invoke(agent, committee.getName(), topic, context);
         } catch (RuntimeException e) {
-            updateState(sessionId, agentId, AgentRunState.FAILED, 0);
-            sse.send(sessionId, SseEventType.AGENT_FAILED,
-                AgentFailedEvent.of(sessionId, agentId, agent.getName(), e.getMessage()));
-            log.error("Agent failed: session={} agent={}", sessionId, agent.getName(), e);
+            failAgent(sessionId, agent, e.getMessage());
             return;
         }
-
-        // SUBMITTED with draft saved
-        updateStateWithDraft(sessionId, agentId, AgentRunState.SUBMITTED, 100, draft.text());
+        persistDraft(sessionId, agentId, AgentRunState.SUBMITTED, draft.text());
         emitAgentState(sessionId, agent, AgentRunState.SUBMITTED, 100);
         sse.send(sessionId, SseEventType.AGENT_DRAFT_DONE,
             new AgentDraftDoneEvent(sessionId, agentId, agent.getName(),
                 draft.modelUsed(), draft.promptTokens(), draft.completionTokens(),
                 draft.latency().toMillis(), Instant.now()));
+
+        // ---- CoS GATE (Round 1) ----
+        CosReviewResult review = cos.review(agent, committee.getName(), topic, context, draft.text());
+        persistCosReview(sessionId, agentId, 1, review);
+
+        if (review.verdict() == CosVerdict.PASSED) {
+            terminate(sessionId, agent, AgentRunState.PASSED, review);
+            return;
+        }
+        if (review.verdict() == CosVerdict.PASSED_WITH_NOTE) {
+            terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
+            return;
+        }
+        // REVISION_REQUESTED — go through one revision round (max 1 per PoC)
+        sse.send(sessionId, SseEventType.COS_REVISION_REQ,
+            Map.of(
+                "sessionId", sessionId,
+                "agentId", agentId,
+                "agentName", agent.getName(),
+                "challenge", review.challenge() == null ? "" : review.challenge()
+            ));
+
+        if (maxRevisions < 1) {
+            terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
+            return;
+        }
+
+        // ---- REVISING ----
+        updateState(sessionId, agentId, AgentRunState.REVISING, 60);
+        emitAgentState(sessionId, agent, AgentRunState.REVISING, 60);
+
+        AgentDraft revised;
+        try {
+            revised = invoker.invokeRevision(agent, committee.getName(), topic, context,
+                draft.text(), review.challenge());
+        } catch (RuntimeException e) {
+            failAgent(sessionId, agent, e.getMessage());
+            return;
+        }
+        persistDraft(sessionId, agentId, AgentRunState.SUBMITTED, revised.text());
+        emitAgentState(sessionId, agent, AgentRunState.SUBMITTED, 90);
+        sse.send(sessionId, SseEventType.AGENT_DRAFT_DONE,
+            new AgentDraftDoneEvent(sessionId, agentId, agent.getName(),
+                revised.modelUsed(), revised.promptTokens(), revised.completionTokens(),
+                revised.latency().toMillis(), Instant.now()));
+
+        // ---- CoS GATE (Round 2 — final) ----
+        CosReviewResult round2 = cos.review(agent, committee.getName(), topic, context, revised.text());
+        persistCosReview(sessionId, agentId, 2, round2);
+
+        // Even if still REVISION_REQUESTED, we're out of rounds → PASSED_WITH_NOTE
+        AgentRunState finalState = switch (round2.verdict()) {
+            case PASSED              -> AgentRunState.PASSED;
+            case PASSED_WITH_NOTE,
+                 REVISION_REQUESTED  -> AgentRunState.PASSED_WITH_NOTE;
+            case FAILED              -> AgentRunState.FAILED;
+        };
+        terminate(sessionId, agent, finalState, round2);
+    }
+
+    private void terminate(UUID sessionId, AgentProfile agent,
+                           AgentRunState terminalState, CosReviewResult review) {
+        updateState(sessionId, agent.getId(), terminalState, 100);
+        emitAgentState(sessionId, agent, terminalState, 100);
+        String eventType = switch (review.verdict()) {
+            case PASSED              -> SseEventType.COS_REVIEW_PASSED;
+            case PASSED_WITH_NOTE    -> SseEventType.COS_REVIEW_NOTED;
+            case REVISION_REQUESTED  -> SseEventType.COS_REVIEW_NOTED; // out of rounds
+            case FAILED              -> SseEventType.AGENT_FAILED;
+        };
+        sse.send(sessionId, eventType, Map.of(
+            "sessionId", sessionId,
+            "agentId", agent.getId(),
+            "agentName", agent.getName(),
+            "verdict", review.verdict(),
+            "scores", Map.of(
+                "specificity",  review.specificity(),
+                "completeness", review.completeness(),
+                "evidence",     review.evidence(),
+                "boundaries",   review.boundaries(),
+                "ideology",     review.ideology()),
+            "note", review.challenge() == null ? "" : review.challenge()
+        ));
+    }
+
+    private void failAgent(UUID sessionId, AgentProfile agent, String reason) {
+        updateState(sessionId, agent.getId(), AgentRunState.FAILED, 0);
+        emitAgentState(sessionId, agent, AgentRunState.FAILED, 0);
+        sse.send(sessionId, SseEventType.AGENT_FAILED,
+            AgentFailedEvent.of(sessionId, agent.getId(), agent.getName(), reason));
+        log.error("Agent failed: session={} agent={} reason={}",
+            sessionId, agent.getName(), reason);
+    }
+
+    private void persistDraft(UUID sessionId, UUID agentId, AgentRunState state, String draft) {
+        updateStateWithDraft(sessionId, agentId, state, 100, draft);
+    }
+
+    private void persistCosReview(UUID sessionId, UUID agentId, int round, CosReviewResult r) {
+        cosReviews.save(CosReview.builder()
+            .sessionId(sessionId)
+            .agentId(agentId)
+            .roundNo(round)
+            .specificityScore((short) r.specificity())
+            .completenessScore((short) r.completeness())
+            .evidenceScore((short) r.evidence())
+            .boundariesScore((short) r.boundaries())
+            .ideologyScore((short) r.ideology())
+            .verdict(r.verdict())
+            .challengeText(r.challenge())
+            .build());
     }
 
     private void emitAgentState(UUID sessionId, AgentProfile agent,
