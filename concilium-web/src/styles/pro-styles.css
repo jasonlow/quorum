@@ -42,6 +42,24 @@
   --mono:  'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* Dusk theme overrides — lifted verbatim from the handoff prototype. */
+body.theme-dusk {
+  --bg:        #1c1a16;
+  --bg-2:      #15130f;
+  --surface:   #24211c;
+  --surface-2: #2c2823;
+  --tint:      #2e2a22;
+  --ink:       #f1ebdc;
+  --ink-2:     #d4cdb9;
+  --ink-3:     #9a907a;
+  --ink-4:     #6b624f;
+  --hairline:  #3a342a;
+  --hairline-2:#2c2823;
+  --accent:    #e08a4c;
+  --accent-2:  #b86a30;
+  --accent-bg: #3a2a1c;
+}
+
 * { box-sizing: border-box; }
 
 body {
