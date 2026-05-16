@@ -99,10 +99,16 @@ public class ChiefOfStaffService {
     }
 
     private ChatOptions buildOptions() {
-        ChatOptions.Builder b = ChatOptions.builder()
-            .temperature(0.15);   // CoS must be consistent + critical, not creative
+        ChatOptions.Builder b = ChatOptions.builder();
+        boolean isReasoner = cosModelOverride != null
+            && cosModelOverride.toLowerCase().contains("reasoner");
         if (cosModelOverride != null && !cosModelOverride.isBlank()) {
             b.model(cosModelOverride);
+        }
+        // DeepSeek's reasoner model doesn't accept temperature (ignored, but
+        // be explicit). For chat-tier models we want deterministic critique.
+        if (!isReasoner) {
+            b.temperature(0.15);
         }
         return b.build();
     }

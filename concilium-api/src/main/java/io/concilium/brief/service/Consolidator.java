@@ -19,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,9 +52,6 @@ public class Consolidator {
     private final PromptTemplates prompts;
     private final ChatModel chatModel;
     private final ObjectMapper json;
-
-    @Value("${concilium.llm.cos-model:#{null}}")
-    private String cosModelOverride;
 
     @Transactional
     public Brief build(UUID sessionId) {
@@ -162,11 +158,10 @@ public class Consolidator {
     }
 
     private ChatOptions buildOptions() {
-        ChatOptions.Builder b = ChatOptions.builder().temperature(0.3);
-        if (cosModelOverride != null && !cosModelOverride.isBlank()) {
-            b.model(cosModelOverride);
-        }
-        return b.build();
+        // Brief consolidation always uses the default chat model
+        // (deepseek-chat) — fast, sufficient for synthesis. CoS uses
+        // deepseek-reasoner separately for rigorous critique.
+        return ChatOptions.builder().temperature(0.3).build();
     }
 
     private static String asString(Object v) {

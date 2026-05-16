@@ -17,5 +17,12 @@ spring:
       api-key: ${DEEPSEEK_API_KEY:not-set}
       chat:
         options:
-          model: deepseek-chat        # DeepSeek V4 chat model
+          model: deepseek-chat        # DeepSeek V4 — used by agents + brief
           temperature: 0.7
+
+# Per-agent / per-role model overrides. CoS uses the reasoner model for
+# rigorous critique; agents and brief consolidator use the default chat
+# model above. Override either via env vars.
+concilium:
+  llm:
+    cos-model: ${CONCILIUM_COS_MODEL:deepseek-reasoner}
