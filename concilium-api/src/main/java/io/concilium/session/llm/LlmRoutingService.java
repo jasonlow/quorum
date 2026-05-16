@@ -43,14 +43,14 @@ public class LlmRoutingService {
 
         String override = agent.getModelOverride();
         boolean hasOverride = override != null && !override.isBlank();
-        boolean isReasoner = hasOverride && override.toLowerCase().contains("reasoner");
 
         if (hasOverride) {
             options.model(override);
         }
-        // Reasoner models on DeepSeek don't accept temperature. For chat-tier
-        // models — agent default or override — pass the agent's temperature.
-        if (!isReasoner) {
+        // Reasoning-tier models on DeepSeek don't accept temperature.
+        // For chat-tier models — agent default or override — pass the
+        // agent's temperature.
+        if (!isReasoningTier(override)) {
             options.temperature(agent.getTemperature().doubleValue());
         }
 
@@ -58,5 +58,23 @@ public class LlmRoutingService {
             .defaultSystem(agent.getSystemPrompt())
             .defaultOptions(options.build())
             .build();
+    }
+
+    /**
+     * Whether {@code model} names a reasoning-tier DeepSeek model that
+     * doesn't accept the {@code temperature} parameter.
+     *
+     * <p>DeepSeek naming has drifted over time:
+     * <ul>
+     *   <li>{@code deepseek-reasoner} — legacy alias (R1 family)</li>
+     *   <li>{@code deepseek-v4-pro}   — current canonical name</li>
+     * </ul>
+     * Both are matched; substring rules keep this robust against
+     * suffixes like {@code v4-pro-2025-11}.
+     */
+    public static boolean isReasoningTier(String model) {
+        if (model == null) return false;
+        String m = model.toLowerCase();
+        return m.contains("reasoner") || m.contains("-pro");
     }
 }

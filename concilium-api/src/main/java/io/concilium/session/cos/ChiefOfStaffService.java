@@ -100,14 +100,15 @@ public class ChiefOfStaffService {
 
     private ChatOptions buildOptions() {
         ChatOptions.Builder b = ChatOptions.builder();
-        boolean isReasoner = cosModelOverride != null
-            && cosModelOverride.toLowerCase().contains("reasoner");
         if (cosModelOverride != null && !cosModelOverride.isBlank()) {
             b.model(cosModelOverride);
         }
-        // DeepSeek's reasoner model doesn't accept temperature (ignored, but
-        // be explicit). For chat-tier models we want deterministic critique.
-        if (!isReasoner) {
+        // Reasoning-tier DeepSeek models don't accept temperature (ignored,
+        // but cleaner to be explicit). For chat-tier we want deterministic
+        // critique. Uses the same isReasoningTier rule as LlmRoutingService —
+        // matches both the legacy "deepseek-reasoner" alias and the current
+        // "deepseek-v4-pro" canonical name.
+        if (!io.concilium.session.llm.LlmRoutingService.isReasoningTier(cosModelOverride)) {
             b.temperature(0.15);
         }
         return b.build();

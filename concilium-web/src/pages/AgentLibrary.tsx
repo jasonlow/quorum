@@ -8,8 +8,18 @@ import { PageHeader } from '@/ui/PageHeader';
 import { agentsApi, type AgentStatus } from '@/features/sessions/api';
 import type { Agent } from '@/features/sessions/types';
 
-const DEFAULT_MODEL = 'deepseek-chat';
-const REASONER       = 'deepseek-reasoner';
+// DeepSeek naming (May 2026):
+//   - chat-tier:      "deepseek-chat" (alias; auto-routes to v4-flash)
+//                     or explicit "deepseek-v4-flash"
+//   - reasoning-tier: "deepseek-v4-pro" (canonical) / "deepseek-reasoner" (alias)
+// The chip below sends the canonical names so per-agent overrides keep
+// working when DeepSeek deprecates the legacy aliases.
+const CHAT_TIER       = 'deepseek-v4-flash';
+const REASONING_TIER  = 'deepseek-v4-pro';
+// Considered "this is chat-tier" for the chip-active comparison — covers
+// both aliases that DeepSeek's API currently honours.
+const CHAT_TIER_NAMES = new Set([CHAT_TIER, 'deepseek-chat']);
+const REASONING_TIER_NAMES = new Set([REASONING_TIER, 'deepseek-reasoner']);
 
 function initials(name: string): string {
   return name.split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 2).toUpperCase();
@@ -202,10 +212,10 @@ type CardProps = {
 function AgentCard({
   agent, busy, archived, onSetModel, onEdit, onArchive, onRestore,
 }: CardProps) {
-  const current = agent.modelOverride ?? DEFAULT_MODEL;
+  const current = agent.modelOverride ?? CHAT_TIER;
   const isOverridden = !!agent.modelOverride;
-  const isReasoner = current === REASONER;
-  const isChat     = current === DEFAULT_MODEL;
+  const isReasoner = REASONING_TIER_NAMES.has(current);
+  const isChat     = CHAT_TIER_NAMES.has(current);
 
   return (
     <div className="card-elev" style={{ padding: 18 }}>
@@ -293,25 +303,25 @@ function AgentCard({
               onClick={() => onSetModel(null)}
               title="Use the workspace default chat model"
             >
-              Default chat
+              Default
             </button>
             <button
               className={`chip ${isOverridden && isChat ? 'chip-on' : ''}`}
               style={{ cursor: busy ? 'wait' : 'pointer' }}
               disabled={busy || (isOverridden && isChat)}
-              onClick={() => onSetModel(DEFAULT_MODEL)}
-              title="Pin to deepseek-chat explicitly"
+              onClick={() => onSetModel(CHAT_TIER)}
+              title={`Pin to ${CHAT_TIER} explicitly`}
             >
-              <span className="t-mono">chat</span>
+              <span className="t-mono">flash</span>
             </button>
             <button
               className={`chip ${isReasoner ? 'chip-on' : ''}`}
               style={{ cursor: busy ? 'wait' : 'pointer' }}
               disabled={busy || isReasoner}
-              onClick={() => onSetModel(REASONER)}
-              title="Route to deepseek-reasoner — slower, more rigorous"
+              onClick={() => onSetModel(REASONING_TIER)}
+              title={`Route to ${REASONING_TIER} — slower, more rigorous reasoning tier`}
             >
-              <span className="t-mono">reasoner</span>
+              <span className="t-mono">pro</span>
             </button>
           </div>
         )}

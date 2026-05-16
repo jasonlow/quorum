@@ -20,9 +20,14 @@ spring:
           model: deepseek-chat        # DeepSeek V4 — used by agents + brief
           temperature: 0.7
 
-# Per-agent / per-role model overrides. CoS uses the reasoner model for
-# rigorous critique; agents and brief consolidator use the default chat
-# model above. Override either via env vars.
+# Per-agent / per-role model overrides. CoS uses the reasoning-tier
+# model for rigorous critique; agents and brief consolidator use the
+# default chat-tier above. Override either via env vars.
+#
+# DeepSeek model naming (May 2026):
+#   - chat-tier:      "deepseek-chat" (alias, currently routes to v4-flash)
+#                     or explicit "deepseek-v4-flash"
+#   - reasoning-tier: "deepseek-v4-pro" (or legacy alias "deepseek-reasoner")
 concilium:
   llm:
-    cos-model: ${CONCILIUM_COS_MODEL:deepseek-reasoner}
+    cos-model: ${CONCILIUM_COS_MODEL:deepseek-v4-pro}

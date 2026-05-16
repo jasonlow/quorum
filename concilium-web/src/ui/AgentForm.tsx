@@ -13,9 +13,9 @@ type Props = {
 };
 
 const MODEL_OPTIONS: Array<{ label: string; value: string | null }> = [
-  { label: 'Default (workspace chat model)', value: null },
-  { label: 'deepseek-chat (explicit)',       value: 'deepseek-chat' },
-  { label: 'deepseek-reasoner',              value: 'deepseek-reasoner' },
+  { label: 'Default (workspace chat-tier)',  value: null },
+  { label: 'deepseek-v4-flash (chat-tier)',  value: 'deepseek-v4-flash' },
+  { label: 'deepseek-v4-pro (reasoning)',    value: 'deepseek-v4-pro' },
 ];
 
 export function AgentForm({

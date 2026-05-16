@@ -23,7 +23,17 @@ const EMPTY_AGENT: AgentRequest = {
 // outside this set (e.g. a value hallucinated by an earlier LLM call and
 // silently persisted) gets normalised to null at load time so the form
 // can't silently re-submit the bad value back to the server.
-const KNOWN_MODEL_OVERRIDES = new Set(['deepseek-chat', 'deepseek-reasoner']);
+//
+// Both the legacy aliases (deepseek-chat, deepseek-reasoner) and the
+// current canonical names (deepseek-v4-flash, deepseek-v4-pro) are
+// accepted so existing per-agent overrides don't get reset on the next
+// Edit even if they were saved before the rename.
+const KNOWN_MODEL_OVERRIDES = new Set([
+  'deepseek-chat',          // legacy alias → currently routes to v4-flash
+  'deepseek-v4-flash',      // canonical chat-tier
+  'deepseek-reasoner',      // legacy alias → currently routes to v4-pro
+  'deepseek-v4-pro',        // canonical reasoning-tier
+]);
 
 function normaliseModelOverride(raw: string | null | undefined): string | null {
   if (!raw) return null;
