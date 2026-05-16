@@ -42,10 +42,11 @@ Run `make help` to see all targets.
 
 | Phase | What works |
 |---|---|
-| ✅ Week 1, Days 1–2 (T01–T07) | Project scaffold, Maven + Spring Boot 3.5, Spring AI, JPA entities, Flyway schema, Investment Risk Committee seeded with 5 personas, smoke endpoint `GET /api/v1/agents` |
-| ⏳ Week 1, Days 3–5 (T08–T17) | Spring AI ChatClient wiring, prompt templates, single-agent invocation, frontend skeleton |
-| ⏳ Week 2 (T01–T12) | Parallel orchestrator, SSE streaming, CoS quality gate, brief consolidator |
-| ⏳ Week 3 (T01–T15) | Boardroom UI, decision panel, local audit chain (Ed25519), verifier CLI |
+| ✅ Week 1 — backend foundation | Spring Boot 3.5, Spring AI, JPA entities, Flyway, Investment Risk Committee with 5 personas, single-agent invocation, integration test |
+| ✅ Week 2 — orchestration | Parallel virtual-thread orchestrator, SSE streaming, Chief of Staff quality gate (deepseek-reasoner), brief consolidator |
+| ✅ Week 3 — backend audit (Chunk A) | LocalKeystoreSigner (Ed25519 PEM), DecisionSealer with hash chain, POST /decide, verify CLI, per-agent model override |
+| ✅ Week 3 — frontend (Chunk B.1) | React 18 + Vite + TS: Dashboard, Convene, Boardroom (live SSE), Brief + decision panel, Session Complete with audit chain |
+| ⏳ Week 3 — frontend polish (Chunk B.2) | Sidebar nav, audit log history view, agent library admin UI, token-streaming previews, theme/density toggle |
 
 ## LLM provider
 
@@ -56,17 +57,26 @@ Offline fallback (`ollama`): **Ollama** with `llama3.1:8b` running locally.
 
 Switch with `SPRING_PROFILES_ACTIVE=ollama`.
 
-## Next step
-
-Install Java 21, then from the `concilium-api/` directory:
+## Running the full stack
 
 ```bash
-./mvnw spring-boot:run
-# In another terminal:
-curl -s http://localhost:8080/api/v1/agents | jq
+# Terminal 1 — backend (auto-starts Postgres via docker compose)
+cd concilium-api && ./mvnw spring-boot:run
+
+# Terminal 2 — frontend (first time: pnpm install)
+cd concilium-web && pnpm install && pnpm dev
+
+# Open http://localhost:5173 in a browser
 ```
 
-That should return 5 seeded agents — the Investment Risk Committee.
+Then click **Convene committee** → **Start deliberation** → watch the
+boardroom light up → read the brief → seal a decision.
+
+For the audit-chain verification (Bet B5):
+
+```bash
+make verify SESSION=./data/audit/session-<id>.json
+```
 
 ## Testing with Postman
 

@@ -23,8 +23,11 @@ db:                         ## Start Postgres in Docker
 api:                        ## Run backend (Spring Boot)
 	cd $(API_DIR) && ./mvnw spring-boot:run
 
-web:                        ## Run frontend (Vite dev server) — Week 3
+web:                        ## Run frontend (Vite dev server :5173)
 	cd $(WEB_DIR) && pnpm dev
+
+install-web:                ## Install frontend dependencies (one-time)
+	cd $(WEB_DIR) && pnpm install
 
 up: db                      ## Bring everything up (api in background, web in foreground)
 	cd $(API_DIR) && ./mvnw spring-boot:run &

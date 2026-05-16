@@ -1,0 +1,21 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  server: {
+    port: 5173,
+    // Pass-through proxy for the backend so the browser can talk to
+    // /api/* and /actuator/* without CORS. SSE works through this too.
+    proxy: {
+      '/api':      { target: 'http://localhost:8080', changeOrigin: true },
+      '/actuator': { target: 'http://localhost:8080', changeOrigin: true },
+    },
+  },
+});

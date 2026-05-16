@@ -1,0 +1,126 @@
+/* App-specific layout that complements the lifted design tokens. */
+
+html, body, #root { height: 100%; min-height: 100vh; }
+
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+
+.app-topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--hairline);
+  position: sticky; top: 0; z-index: 10;
+}
+.app-topbar .brand {
+  display: inline-flex; align-items: baseline; gap: 8px;
+}
+.app-topbar .brand .mark {
+  font-family: var(--serif);
+  font-size: 18px;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+.app-topbar .brand .ws { font-family: var(--sans); font-size: 12px; color: var(--ink-3); }
+
+.app-stage { padding: 24px 32px 48px; max-width: 1280px; width: 100%; margin: 0 auto; flex: 1; }
+
+/* Boardroom grid */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+/* CoS card sits below the grid, slightly elevated */
+.cos-card {
+  margin-top: 24px;
+  padding: 18px 22px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+
+/* Phase indicator strip */
+.phase-strip {
+  display: flex; align-items: center; gap: 20px;
+  padding: 14px 0; border-top: 1px solid var(--hairline-2);
+  border-bottom: 1px solid var(--hairline-2);
+}
+.phase-strip .clock { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
+
+/* Brief layout */
+.brief {
+  padding: 24px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+}
+.brief .banner {
+  padding: 16px 20px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+}
+.brief h3 {
+  font-family: var(--sans); font-weight: 600; font-size: 12px;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3);
+  margin: 24px 0 8px;
+}
+.brief ul { padding-left: 18px; margin: 0; }
+.brief ul li { margin: 6px 0; }
+.brief .disagreement {
+  padding: 12px 14px; border-left: 2px solid var(--amber);
+  background: var(--amber-bg); border-radius: var(--radius);
+  margin: 10px 0;
+}
+
+/* Decision panel */
+.decision-panel {
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  margin-top: 20px;
+}
+.decision-panel .options { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+.decision-panel label {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border: 1px solid var(--hairline);
+  border-radius: var(--radius); cursor: pointer;
+}
+.decision-panel label.is-selected {
+  background: var(--accent-bg); border-color: var(--accent);
+}
+
+/* Recent sessions placeholder */
+.empty-state {
+  padding: 32px;
+  text-align: center;
+  color: var(--ink-3);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+}
+
+/* Click-targets */
+.tile {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+.tile:hover { border-color: var(--ink-3); }
+.tile:active { transform: translateY(1px); }
+
+/* Toast / inline message */
+.notice {
+  padding: 10px 14px; border-radius: var(--radius);
+  background: var(--blue-bg); color: var(--blue);
+  font-size: 12.5px;
+}
+.notice-err { background: var(--red-bg); color: var(--red); }
+.notice-ok  { background: var(--green-bg); color: var(--green); }
