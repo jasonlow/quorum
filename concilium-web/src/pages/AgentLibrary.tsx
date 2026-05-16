@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, RefreshCw, RotateCcw } from 'lucide-react';
+import { Home, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
 import { Btn } from '@/ui/Btn';
 import { Pill } from '@/ui/Pill';
 import { Avatar } from '@/ui/Avatar';
@@ -73,6 +73,26 @@ export function AgentLibrary() {
     }
   }
 
+  async function deleteAgent(a: Agent) {
+    const ok = window.confirm(
+      `Delete agent "${a.name}"?\n\n`
+      + `If the agent is in a committee or has been part of any session, `
+      + `the backend will refuse (returns 409). Seeded committee members `
+      + `are protected this way.`,
+    );
+    if (!ok) return;
+    setBusyAgentId(a.id);
+    setErr(null);
+    try {
+      await agentsApi.remove(a.id);
+      setAgents(prev => (prev ? prev.filter(x => x.id !== a.id) : prev));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyAgentId(null);
+    }
+  }
+
   const anyOverridden = (agents ?? []).some(a => !!a.modelOverride);
 
   return (
@@ -80,9 +100,12 @@ export function AgentLibrary() {
       <PageHeader
         eyebrow="Manage"
         title="Agent library"
-        sub="Each agent runs on the default chat model unless you route it to the reasoner. High-stakes agents (Compliance, Risk) benefit from reasoner rigour; speed-sensitive agents stay on chat."
+        sub="Create new committee members, tune existing personas, or route them to a different model. High-stakes agents (Compliance, Risk) benefit from reasoner rigour."
         right={
           <div className="row gap-2">
+            <Btn kind="accent" icon={Plus} onClick={() => navigate('/agents/new')}>
+              New agent
+            </Btn>
             <Btn icon={RotateCcw} onClick={resetAll} disabled={!anyOverridden || resettingAll}>
               {resettingAll ? 'Resetting…' : 'Reset all overrides'}
             </Btn>
@@ -110,6 +133,8 @@ export function AgentLibrary() {
               agent={a}
               busy={busyAgentId === a.id}
               onSetModel={(model) => setOverride(a, model)}
+              onEdit={() => navigate(`/agents/${a.id}/edit`)}
+              onDelete={() => deleteAgent(a)}
             />
           ))}
         </div>
@@ -124,9 +149,11 @@ type CardProps = {
   agent: Agent;
   busy: boolean;
   onSetModel: (model: string | null) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 };
 
-function AgentCard({ agent, busy, onSetModel }: CardProps) {
+function AgentCard({ agent, busy, onSetModel, onEdit, onDelete }: CardProps) {
   const current = agent.modelOverride ?? DEFAULT_MODEL;
   const isOverridden = !!agent.modelOverride;
   const isReasoner = current === REASONER;
@@ -237,6 +264,13 @@ function AgentCard({ agent, busy, onSetModel }: CardProps) {
             <span className="t-mono">reasoner</span>
           </button>
         </div>
+      </div>
+
+      <div className="row gap-2" style={{ marginTop: 12, justifyContent: 'flex-end' }}>
+        <Btn size="sm" kind="ghost" icon={Pencil} onClick={onEdit}>Edit</Btn>
+        <Btn size="sm" kind="ghost" icon={Trash2} onClick={onDelete} disabled={busy}>
+          Delete
+        </Btn>
       </div>
     </div>
   );
