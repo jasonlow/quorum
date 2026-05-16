@@ -248,6 +248,61 @@
           ]
         },
         {
+          "name": "Decide (APPROVE_WITH_CHANGES + seal audit chain)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"APPROVE_WITH_CHANGES\",\n  \"chairLabel\": \"jason@penguin.local\",\n  \"overrides\": {\n    \"collateralBufferPct\": 12.5,\n    \"reviewAfterDays\": 90\n  },\n  \"notes\": \"Compromise between Risk (15%) and Treasury (10%). Review after 90 days of live performance.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/decide",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "decide"]
+            },
+            "description": "Records the chair's binding decision and seals an audit record.\n\nValidates session is in BRIEFED phase, persists the immutable decision row, builds the canonical payload (session + agents + CoS reviews + brief + decision), computes a chained SHA-256 hash, signs it with the local Ed25519 keypair, persists the audit_records row, and writes the signed envelope to `./data/audit/session-<id>.json`.\n\n**Idempotent** — re-calling with the same sessionId returns the existing decision + audit summary (200).\n\nUse the **Verify** instructions below to validate the on-disk envelope from a terminal."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('decision stored', () => pm.expect(b.decisionId).to.be.a('string'));",
+                  "pm.test('signature present', () => pm.expect(b.audit.signatureBase64).to.have.length.greaterThan(50));",
+                  "pm.test('payload file path returned', () => pm.expect(b.audit.payloadPath).to.include('session-'));",
+                  "pm.collectionVariables.set('payloadPath', b.audit.payloadPath);",
+                  "console.log('============================================================');",
+                  "console.log('DECISION SEALED');",
+                  "console.log('  Type:        ', b.decision);",
+                  "console.log('  Chair:       ', b.chairLabel);",
+                  "console.log('  Sealed at:   ', b.sealedAt);",
+                  "console.log('--- AUDIT CHAIN ---');",
+                  "console.log('  prevHashHex:    ', b.audit.prevHashHex);",
+                  "console.log('  payloadHashHex: ', b.audit.payloadHashHex);",
+                  "console.log('  signer alias:   ', b.audit.signerKeyAlias);",
+                  "console.log('  payload path:   ', b.audit.payloadPath);",
+                  "console.log('============================================================');",
+                  "console.log('');",
+                  "console.log('TO VERIFY (in a terminal from the project root):');",
+                  "console.log(`  make verify SESSION=${b.audit.payloadPath}`);",
+                  "console.log('');",
+                  "console.log('TO TEST TAMPER DETECTION:');",
+                  "console.log(`  1. Open ${b.audit.payloadPath} in an editor`);",
+                  "console.log('  2. Change ANY character inside the \"payload\" object (e.g. flip a digit in a token count)');",
+                  "console.log('  3. Run the verify command again — expect ✗ TAMPERING DETECTED');",
+                  "console.log('============================================================');"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Run — Risk Manager",
           "request": {
             "method": "POST",

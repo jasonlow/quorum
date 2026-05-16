@@ -74,6 +74,5 @@ concilium:
     max-revision-rounds: 1
     per-agent-timeout: PT5M
   audit:
-    keystore-path: ./data/keys/concilium.p12
-    keystore-password: ${CONCILIUM_KEYSTORE_PASSWORD:changeit}
-    payload-dir: ./data/audit
+    keys-dir: ./data/keys             # PEM files live here (private + public)
+    payload-dir: ./data/audit         # sealed audit payload JSON files

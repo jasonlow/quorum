@@ -165,6 +165,19 @@
 					</annotationProcessorPaths>
 				</configuration>
 			</plugin>
+			<!-- Used by the audit-chain verifier CLI:
+			       ./mvnw -q exec:java \
+			         -Dexec.mainClass=io.concilium.audit.verify.VerifyCli \
+			         -Dexec.args="./data/audit/session-XXX.json"
+			-->
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.5.0</version>
+				<configuration>
+					<includePluginDependencies>false</includePluginDependencies>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

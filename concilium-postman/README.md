@@ -50,6 +50,7 @@ requests freely.
    ├─ Deliberate (parallel)         → kicks off all 5 agents + CoS + brief
    ├─ Stream events (SSE)           → live event feed (open BEFORE deliberate)
    ├─ Get brief                     → consolidated recommendation (after stream closes)
+   ├─ Decide (seal audit chain)     → chair decision + Ed25519-signed audit envelope
    │
    │   The "Run — <persona>" requests below are the W1 single-agent dev path
    │   — handy for quick prompt iteration but bypasses CoS + brief.
@@ -60,6 +61,28 @@ requests freely.
    ├─ Run — Treasury / Ops
    └─ Run — Macro Economist
 ```
+
+### Tamper-evidence test (B5 validation)
+
+After running **Decide**, the backend wrote a signed audit envelope to
+`concilium-api/data/audit/session-<id>.json`. The `make verify` target
+runs inside `concilium-api/`, so the SESSION path is relative to that
+directory.
+
+From the project root:
+
+```bash
+# Verify the untampered envelope — expect green checks
+make verify SESSION=./data/audit/session-<id>.json
+
+# Open the envelope in an editor, change ANY character inside the
+# "payload" object (e.g. flip a digit in a token count), save, re-run:
+make verify SESSION=./data/audit/session-<id>.json
+#   → expect: ✗✗✗ TAMPERING DETECTED
+```
+
+The verifier uses the public PEM at `concilium-api/data/keys/concilium-public.pem`
+(written on first boot) — never touches the private key.
 
 ### Full-flow demo
 
