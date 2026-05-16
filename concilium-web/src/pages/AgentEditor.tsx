@@ -19,6 +19,22 @@ const EMPTY_AGENT: AgentRequest = {
   temperature: 0.7,
 };
 
+// Whitelist of model strings the form's dropdown can represent. Anything
+// outside this set (e.g. a value hallucinated by an earlier LLM call and
+// silently persisted) gets normalised to null at load time so the form
+// can't silently re-submit the bad value back to the server.
+const KNOWN_MODEL_OVERRIDES = new Set(['deepseek-chat', 'deepseek-reasoner']);
+
+function normaliseModelOverride(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (KNOWN_MODEL_OVERRIDES.has(raw)) return raw;
+  console.warn(
+    `[AgentEditor] Unknown modelOverride "${raw}" on loaded agent — `
+    + 'resetting to default. Use the Agents library chips to set an explicit override.',
+  );
+  return null;
+}
+
 function fromAgent(a: Agent): AgentRequest {
   return {
     name: a.name,
@@ -29,7 +45,7 @@ function fromAgent(a: Agent): AgentRequest {
     boundaries: a.boundaries ?? [],
     speakingStyle: a.speakingStyle ?? '',
     systemPrompt: a.systemPrompt ?? '',
-    modelOverride: a.modelOverride ?? null,
+    modelOverride: normaliseModelOverride(a.modelOverride),
     temperature: typeof a.temperature === 'number' ? a.temperature : 0.7,
   };
 }
