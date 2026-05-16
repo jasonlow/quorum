@@ -459,6 +459,168 @@
           ]
         }
       ]
+    },
+    {
+      "name": "3. Agent admin (per-agent model override)",
+      "description": "Set or clear an agent's model override at runtime. Affects all subsequent deliberations. In the local profile valid values are `deepseek-chat` and `deepseek-reasoner`.\n\nRecommended pattern: route the high-stakes agents (Compliance, Risk Manager) to `deepseek-reasoner` for tighter analysis; leave the rest on the default `deepseek-chat` for speed.\n\nRun **1. Agents → List agents & populate IDs** first so the per-persona IDs are in collection variables.",
+      "item": [
+        {
+          "name": "Set Risk Manager → deepseek-reasoner",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"deepseek-reasoner\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents/{{riskManagerId}}/model-override",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents", "{{riskManagerId}}", "model-override"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('override applied', () => pm.expect(a.modelOverride).to.eql('deepseek-reasoner'));",
+                  "console.log(`${a.name} → modelOverride = ${a.modelOverride}`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Compliance Officer → deepseek-reasoner",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"deepseek-reasoner\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents/{{complianceOfficerId}}/model-override",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents", "{{complianceOfficerId}}", "model-override"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('override applied', () => pm.expect(a.modelOverride).to.eql('deepseek-reasoner'));",
+                  "console.log(`${a.name} → modelOverride = ${a.modelOverride}`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Clear Risk Manager override (back to default)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents/{{riskManagerId}}/model-override",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents", "{{riskManagerId}}", "model-override"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "pm.test('override cleared', () => pm.expect(a.modelOverride).to.be.null);",
+                  "console.log(`${a.name} → modelOverride = (default chat model)`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set any agent (templated) → reasoner",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"model\": \"deepseek-reasoner\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents/{{strategistId}}/model-override",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents", "{{strategistId}}", "model-override"]
+            },
+            "description": "Pre-filled with strategistId — edit the path UUID variable to {{complianceOfficerId}}, {{treasuryOpsId}} or {{macroEconomistId}} as needed.\n\nFor large-scale experimentation, duplicate this request and adjust the body / path per persona."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "console.log(`${a.name} → modelOverride = ${a.modelOverride || '(default)'}`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get agent (verify current modelOverride)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents/{{riskManagerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents", "{{riskManagerId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const a = pm.response.json();",
+                  "console.log(`${a.name}`);",
+                  "console.log(`  modelOverride: ${a.modelOverride || '(default chat model)'}`);",
+                  "console.log(`  temperature:   ${a.temperature}`);",
+                  "console.log(`  ideology:      ${a.ideology}`);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

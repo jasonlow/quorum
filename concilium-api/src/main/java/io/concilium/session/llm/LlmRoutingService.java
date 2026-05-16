@@ -23,6 +23,9 @@ import org.springframework.stereotype.Service;
  * via the same OpenAI starter; an override of {@code "gpt-4.1"} would
  * not work on this profile (different base URL). Cross-provider routing
  * is a Phase 1 enhancement.
+ *
+ * <p>When the override targets a reasoner model, temperature is omitted —
+ * DeepSeek-Reasoner ignores it, but cleanest to be explicit.
  */
 @Service
 @RequiredArgsConstructor
@@ -36,11 +39,19 @@ public class LlmRoutingService {
      * prompt, temperature, and optional model override.
      */
     public ChatClient clientFor(AgentProfile agent) {
-        ChatOptions.Builder options = ChatOptions.builder()
-            .temperature(agent.getTemperature().doubleValue());
+        ChatOptions.Builder options = ChatOptions.builder();
 
-        if (agent.getModelOverride() != null && !agent.getModelOverride().isBlank()) {
-            options.model(agent.getModelOverride());
+        String override = agent.getModelOverride();
+        boolean hasOverride = override != null && !override.isBlank();
+        boolean isReasoner = hasOverride && override.toLowerCase().contains("reasoner");
+
+        if (hasOverride) {
+            options.model(override);
+        }
+        // Reasoner models on DeepSeek don't accept temperature. For chat-tier
+        // models — agent default or override — pass the agent's temperature.
+        if (!isReasoner) {
+            options.temperature(agent.getTemperature().doubleValue());
         }
 
         return ChatClient.builder(chatModel)
