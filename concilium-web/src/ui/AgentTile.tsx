@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Avatar } from './Avatar';
 import type { AgentRunState } from '../features/sessions/types';
 
@@ -8,6 +9,7 @@ type AgentTileProps = {
   progress: number;
   detail?: string | null;
   modelUsed?: string | null;
+  streamingText?: string | null;
 };
 
 const STATE_LABEL: Record<AgentRunState, string> = {
@@ -54,9 +56,22 @@ function rim(state: AgentRunState) {
   return undefined;
 }
 
-export function AgentTile({ name, ideology, state, progress, detail, modelUsed }: AgentTileProps) {
+export function AgentTile({
+  name, ideology, state, progress, detail, modelUsed, streamingText,
+}: AgentTileProps) {
   const initials = name.split(/\s+/).filter(Boolean).map(p => p[0]).join('');
   const pillCls = ['pill', STATE_PILL[state]].filter(Boolean).join(' ');
+  const showPreview = !!streamingText && state !== 'PASSED' && state !== 'PASSED_WITH_NOTE'
+    && state !== 'DISSENTING' && state !== 'FAILED';
+  const cursorActive = state === 'DRAFTING' || state === 'REVISING';
+
+  // Auto-scroll the preview box to the latest text as it streams in
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (previewRef.current) {
+      previewRef.current.scrollTop = previewRef.current.scrollHeight;
+    }
+  }, [streamingText]);
 
   return (
     <div className="card-elev" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
@@ -90,6 +105,17 @@ export function AgentTile({ name, ideology, state, progress, detail, modelUsed }
           </span>
         )}
       </div>
+
+      {showPreview && (
+        <div
+          ref={previewRef}
+          className="agent-stream"
+          aria-live="polite"
+        >
+          {streamingText}
+          {cursorActive && <span className="stream-cursor" aria-hidden>▍</span>}
+        </div>
+      )}
 
       {modelUsed && (
         <div className="t-mono" style={{ color: 'var(--ink-4)', fontSize: 10.5 }}>

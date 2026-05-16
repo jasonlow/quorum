@@ -23,6 +23,7 @@ import io.concilium.session.store.SessionRepository;
 import io.concilium.session.streaming.SseChannelManager;
 import io.concilium.session.streaming.SseEventType;
 import io.concilium.session.streaming.events.AgentDraftDoneEvent;
+import io.concilium.session.streaming.events.AgentDraftTokenEvent;
 import io.concilium.session.streaming.events.AgentFailedEvent;
 import io.concilium.session.streaming.events.AgentStateEvent;
 import io.concilium.session.streaming.events.PhaseChangedEvent;
@@ -38,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Fans out the committee's agents on Java 21 virtual threads, awaits all
@@ -158,7 +160,8 @@ public class RoundRobinOrchestrator {
 
         AgentDraft draft;
         try {
-            draft = invoker.invoke(agent, committee.getName(), topic, context);
+            draft = invoker.invokeStreaming(agent, committee.getName(), topic, context,
+                tokenStreamer(sessionId, agent));
         } catch (RuntimeException e) {
             failAgent(sessionId, agent, e.getMessage());
             return;
@@ -202,8 +205,9 @@ public class RoundRobinOrchestrator {
 
         AgentDraft revised;
         try {
-            revised = invoker.invokeRevision(agent, committee.getName(), topic, context,
-                draft.text(), review.challenge());
+            revised = invoker.invokeRevisionStreaming(agent, committee.getName(), topic, context,
+                draft.text(), review.challenge(),
+                tokenStreamer(sessionId, agent));
         } catch (RuntimeException e) {
             failAgent(sessionId, agent, e.getMessage());
             return;
@@ -286,6 +290,27 @@ public class RoundRobinOrchestrator {
                                 AgentRunState state, int progress) {
         sse.send(sessionId, SseEventType.AGENT_STATE,
             AgentStateEvent.of(sessionId, agent.getId(), agent.getName(), state, progress));
+    }
+
+    /**
+     * Returns a token-stream callback that handles two responsibilities:
+     *   1) On the FIRST chunk, transitions agent state THINKING → DRAFTING
+     *      and emits the state-change event. This is the visible moment
+     *      where the tile starts "typing" — reasoner models have a noticeable
+     *      delay before the first token arrives.
+     *   2) For every chunk (including the first), emits an
+     *      {@code agent.draft.token} SSE event carrying just the delta.
+     */
+    private java.util.function.Consumer<String> tokenStreamer(UUID sessionId, AgentProfile agent) {
+        AtomicBoolean transitionedToDrafting = new AtomicBoolean(false);
+        return delta -> {
+            if (transitionedToDrafting.compareAndSet(false, true)) {
+                updateState(sessionId, agent.getId(), AgentRunState.DRAFTING, 60);
+                emitAgentState(sessionId, agent, AgentRunState.DRAFTING, 60);
+            }
+            sse.send(sessionId, SseEventType.AGENT_DRAFT_TOKEN,
+                AgentDraftTokenEvent.of(sessionId, agent.getId(), agent.getName(), delta));
+        };
     }
 
     private Session reload(UUID sessionId) {

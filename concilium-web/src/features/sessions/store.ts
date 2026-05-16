@@ -3,7 +3,7 @@ import type {
   AgentRunState, Phase, SessionView,
 } from './types';
 import type {
-  AgentDraftDoneEvent, AgentFailedEvent, AgentStateEvent,
+  AgentDraftDoneEvent, AgentDraftTokenEvent, AgentFailedEvent, AgentStateEvent,
   BriefReadyEvent, CosEvent, PhaseChangedEvent, SessionCompletedEvent,
 } from './stream';
 
@@ -24,6 +24,8 @@ export type AgentTile = {
   cosVerdict?: string;
   cosChallenge?: string;
   failedReason?: string;
+  /** Live text accumulated from agent.draft.token events. */
+  streamingText?: string;
 };
 
 export type LiveSession = {
@@ -54,6 +56,7 @@ type State = {
   markConnected: (v: boolean) => void;
   applyPhaseChange: (e: PhaseChangedEvent) => void;
   applyAgentState: (e: AgentStateEvent) => void;
+  applyAgentToken: (e: AgentDraftTokenEvent) => void;
   applyAgentDraftDone: (e: AgentDraftDoneEvent) => void;
   applyAgentFailed: (e: AgentFailedEvent) => void;
   applyCosEvent: (e: CosEvent, kind: 'PASSED' | 'PASSED_WITH_NOTE' | 'REVISION_REQUESTED') => void;
@@ -107,6 +110,22 @@ export const useSessionStore = create<State>((set) => ({
           ...a,
           state: e.state,
           progress: e.progress,
+          // Reset the live preview when an agent enters REVISING so the
+          // second-pass draft streams into a fresh box.
+          streamingText: e.state === 'REVISING' ? '' : a.streamingText,
+        })),
+      },
+    };
+  }),
+
+  applyAgentToken: (e) => set((s) => {
+    if (!s.session || s.session.id !== e.sessionId) return s;
+    return {
+      session: {
+        ...s.session,
+        agents: withAgent(s.session.agents, e.agentId, (a) => ({
+          ...a,
+          streamingText: (a.streamingText ?? '') + e.delta,
         })),
       },
     };

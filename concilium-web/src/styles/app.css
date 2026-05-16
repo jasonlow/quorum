@@ -124,3 +124,33 @@ html, body, #root { height: 100%; min-height: 100vh; }
 }
 .notice-err { background: var(--red-bg); color: var(--red); }
 .notice-ok  { background: var(--green-bg); color: var(--green); }
+
+/* Streaming preview inside an AgentTile.
+   Fixed height — the auto-scroll in AgentTile.tsx pins to the latest line. */
+.agent-stream {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-height: 140px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.stream-cursor {
+  display: inline-block;
+  margin-left: 1px;
+  color: var(--accent);
+  font-family: var(--mono);
+  animation: cursor-blink 1.1s steps(1) infinite;
+}
+@keyframes cursor-blink {
+  0%, 50%       { opacity: 1; }
+  50.01%, 100%  { opacity: 0; }
+}

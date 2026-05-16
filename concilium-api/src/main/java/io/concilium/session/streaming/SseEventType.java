@@ -14,6 +14,7 @@ public final class SseEventType {
     public static final String PHASE_CHANGED      = "phase.changed";
 
     public static final String AGENT_STATE        = "agent.state.changed";
+    public static final String AGENT_DRAFT_TOKEN  = "agent.draft.token";
     public static final String AGENT_DRAFT_DONE   = "agent.draft.done";
     public static final String AGENT_FAILED       = "agent.failed";
 

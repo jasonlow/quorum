@@ -119,6 +119,7 @@ export function Boardroom() {
                 : null
             }
             modelUsed={a.modelUsed}
+            streamingText={a.streamingText}
           />
         ))}
       </div>

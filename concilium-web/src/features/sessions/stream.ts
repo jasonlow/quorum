@@ -24,6 +24,14 @@ export type AgentDraftDoneEvent = {
   at: string;
 };
 
+export type AgentDraftTokenEvent = {
+  sessionId: string;
+  agentId: string;
+  agentName: string;
+  delta: string;
+  at: string;
+};
+
 export type AgentFailedEvent = {
   sessionId: string;
   agentId: string;
@@ -83,6 +91,11 @@ export function connectSessionStream(sessionId: string): () => void {
   es.addEventListener('agent.state.changed', (e) => {
     const data: AgentStateEvent = JSON.parse((e as MessageEvent).data);
     set.applyAgentState(data);
+  });
+
+  es.addEventListener('agent.draft.token', (e) => {
+    const data: AgentDraftTokenEvent = JSON.parse((e as MessageEvent).data);
+    set.applyAgentToken(data);
   });
 
   es.addEventListener('agent.draft.done', (e) => {
