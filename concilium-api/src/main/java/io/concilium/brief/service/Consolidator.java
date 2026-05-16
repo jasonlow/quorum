@@ -6,6 +6,7 @@ import io.concilium.agent.domain.AgentProfile;
 import io.concilium.agent.store.AgentProfileRepository;
 import io.concilium.brief.domain.Brief;
 import io.concilium.brief.store.BriefRepository;
+import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.session.cos.CosReview;
 import io.concilium.session.cos.CosReviewRepository;
 import io.concilium.session.domain.AgentRunState;
@@ -47,6 +48,7 @@ public class Consolidator {
     private final SessionRepository sessions;
     private final SessionAgentStateRepository agentStates;
     private final AgentProfileRepository agents;
+    private final CommitteeRepository committees;
     private final CosReviewRepository cosReviews;
     private final BriefRepository briefs;
     private final PromptTemplates prompts;
@@ -95,8 +97,12 @@ public class Consolidator {
             return persistFallback(session, Map.of("error", "no usable drafts"));
         }
 
+        String committeeName = committees.findById(session.getCommitteeId())
+            .map(c -> c.getName())
+            .orElse("the committee");
+
         Map<String, Object> vars = new HashMap<>();
-        vars.put("committeeName", "Investment Risk Committee"); // PoC: single committee
+        vars.put("committeeName", committeeName);
         vars.put("topic", session.getTopic());
         vars.put("contextMd", session.getContextMd());
         vars.put("agents", agentEntries);

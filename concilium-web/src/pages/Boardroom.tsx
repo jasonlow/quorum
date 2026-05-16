@@ -81,7 +81,7 @@ export function Boardroom() {
       <PageHeader
         eyebrow="Boardroom"
         title={session.topic.length > 90 ? session.topic.slice(0, 90) + '…' : session.topic}
-        sub={`Session ${session.id.slice(0, 8)} · Investment Risk Committee`}
+        sub={`Session ${session.id.slice(0, 8)} · ${session.committeeName}`}
         right={
           <div className="row gap-3">
             <Pill tone="accent" withDot>{formatPhase(session.phase)}</Pill>

@@ -184,6 +184,10 @@ public class SessionService {
                 s.getDraftText() != null && !s.getDraftText().isBlank()))
             .toList();
 
-        return SessionView.from(session, entries);
+        String committeeName = committees.findById(session.getCommitteeId())
+            .map(Committee::getName)
+            .orElse("(unknown committee)");
+
+        return SessionView.from(session, committeeName, entries);
     }
 }

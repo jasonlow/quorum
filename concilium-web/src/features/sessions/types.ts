@@ -35,6 +35,7 @@ export type AgentEntry = {
 export type SessionView = {
   id: string;
   committeeId: string;
+  committeeName: string;
   topic: string;
   phase: Phase;
   startedAt: string;

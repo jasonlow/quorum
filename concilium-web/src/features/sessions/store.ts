@@ -31,6 +31,7 @@ export type AgentTile = {
 export type LiveSession = {
   id: string;
   topic: string;
+  committeeName: string;
   phase: Phase;
   startedAt: number;          // ms since epoch
   endedAt?: number;
@@ -79,6 +80,7 @@ export const useSessionStore = create<State>((set) => ({
     session: {
       id: view.id,
       topic: view.topic,
+      committeeName: view.committeeName,
       phase: view.phase,
       startedAt: Date.parse(view.startedAt),
       connected: false,

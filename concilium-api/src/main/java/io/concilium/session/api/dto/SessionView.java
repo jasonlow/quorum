@@ -3,7 +3,6 @@ package io.concilium.session.api.dto;
 import io.concilium.session.domain.AgentRunState;
 import io.concilium.session.domain.Phase;
 import io.concilium.session.domain.Session;
-import io.concilium.session.domain.SessionAgentState;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -13,6 +12,7 @@ import java.util.UUID;
 public record SessionView(
     UUID id,
     UUID committeeId,
+    String committeeName,
     String topic,
     Phase phase,
     OffsetDateTime startedAt,
@@ -26,9 +26,9 @@ public record SessionView(
         boolean hasDraft
     ) {}
 
-    public static SessionView from(Session s, List<AgentEntry> agents) {
+    public static SessionView from(Session s, String committeeName, List<AgentEntry> agents) {
         return new SessionView(
-            s.getId(), s.getCommitteeId(), s.getTopic(),
+            s.getId(), s.getCommitteeId(), committeeName, s.getTopic(),
             s.getPhase(), s.getStartedAt(), agents);
     }
 }

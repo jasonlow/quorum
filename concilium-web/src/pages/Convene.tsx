@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Check } from 'lucide-react';
 import { Btn } from '@/ui/Btn';
+import { Avatar } from '@/ui/Avatar';
+import { Pill } from '@/ui/Pill';
 import { PageHeader } from '@/ui/PageHeader';
-import { sessionsApi } from '@/features/sessions/api';
+import { committeesApi, sessionsApi } from '@/features/sessions/api';
 import { useSessionStore } from '@/features/sessions/store';
+import type { CommitteeView } from '@/features/sessions/types';
 
 const SAMPLE_TOPIC =
   'Review ETH Accumulator Series 3 — proposed structured product for accredited investors. ' +
@@ -34,20 +37,44 @@ const SAMPLE_CONTEXT = `# Product Memo — ETH Accumulator Series 3
 - Classified internally as Specified Investment Product (SIP), accredited-only.
 `;
 
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+}
+
+const DEFAULT_COMMITTEE_NAME = 'Investment Risk Committee';
+
 export function Convene() {
   const navigate = useNavigate();
   const hydrate = useSessionStore(s => s.hydrateFromView);
 
+  const [committees, setCommittees] = useState<CommitteeView[] | null>(null);
+  const [committeeId, setCommitteeId] = useState<string | null>(null);
   const [topic, setTopic] = useState(SAMPLE_TOPIC);
   const [contextMd, setContextMd] = useState(SAMPLE_CONTEXT);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    committeesApi.list('PUBLISHED')
+      .then(list => {
+        setCommittees(list);
+        // Pre-select the seeded Investment Risk Committee if available,
+        // else first published, else nothing
+        const def = list.find(c => c.name === DEFAULT_COMMITTEE_NAME) ?? list[0];
+        setCommitteeId(def?.id ?? null);
+      })
+      .catch(e => setError(e instanceof Error ? e.message : String(e)));
+  }, []);
+
   async function onConvene() {
     setSubmitting(true);
     setError(null);
     try {
-      const view = await sessionsApi.convene({ topic, contextMd });
+      const view = await sessionsApi.convene({
+        committeeId: committeeId ?? undefined,
+        topic,
+        contextMd,
+      });
       hydrate(view);
       navigate(`/sessions/${view.id}`);
     } catch (e) {
@@ -57,15 +84,106 @@ export function Convene() {
     }
   }
 
+  const chosenCommittee = committees?.find(c => c.id === committeeId) ?? null;
+
   return (
     <>
       <PageHeader
         eyebrow="New session"
         title="Set the agenda"
-        sub="Provide the topic + context. The Investment Risk Committee will deliberate in parallel and produce a consolidated brief."
+        sub="Pick a committee, paste the topic + context, and convene. Every member will see the same brief in parallel; the Chief of Staff will quality-gate their drafts before they reach you."
       />
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 880 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 980 }}>
+
+        {/* ─── Committee picker ────────────────────────────────── */}
+        <section>
+          <div className="row gap-3" style={{ alignItems: 'baseline', marginBottom: 10 }}>
+            <label className="t-tiny">Committee</label>
+            <div className="grow" />
+            <Link to="/committees" style={{ textDecoration: 'none' }}>
+              <Btn kind="ghost" size="sm">Manage committees →</Btn>
+            </Link>
+          </div>
+
+          {committees === null && !error && (
+            <div className="t-body-sm muted" style={{ padding: 12 }}>Loading committees…</div>
+          )}
+
+          {committees !== null && committees.length === 0 && (
+            <div className="empty-state">
+              No active committees. <Link to="/committees/new">Create one</Link> first.
+            </div>
+          )}
+
+          {committees !== null && committees.length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 12,
+            }}>
+              {committees.map(c => {
+                const selected = c.id === committeeId;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCommitteeId(c.id)}
+                    className="card"
+                    style={{
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      padding: 14,
+                      border: selected
+                        ? '2px solid var(--accent)'
+                        : '1px solid var(--hairline)',
+                      background: selected ? 'var(--accent-bg)' : 'var(--surface)',
+                      display: 'flex', flexDirection: 'column', gap: 8,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div className="row gap-2" style={{ alignItems: 'baseline' }}>
+                      <div className="t-h3" style={{
+                        overflow: 'hidden', textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap', flex: 1,
+                      }}>{c.name}</div>
+                      {selected && (
+                        <Check size={16} strokeWidth={2.2} style={{ color: 'var(--accent)', flex: '0 0 auto' }} />
+                      )}
+                    </div>
+                    {c.description && (
+                      <div className="t-body-sm muted" style={{
+                        overflow: 'hidden', textOverflow: 'ellipsis',
+                        display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                      }}>
+                        {c.description}
+                      </div>
+                    )}
+                    <div className="row gap-1" style={{ flexWrap: 'wrap' }}>
+                      <Pill>{c.orchestrationPattern.replace(/_/g, ' ').toLowerCase()}</Pill>
+                      <Pill>Q&A: {c.qaIntensity.toLowerCase()}</Pill>
+                    </div>
+                    <div className="av-stack" style={{ marginTop: 4 }}>
+                      {c.members.slice(0, 7).map(m => (
+                        <Avatar key={m.agentId} initials={initials(m.agentName)} size="sm" />
+                      ))}
+                      {c.members.length > 7 && (
+                        <span className="t-tiny muted" style={{ marginLeft: 4, alignSelf: 'center' }}>
+                          +{c.members.length - 7}
+                        </span>
+                      )}
+                    </div>
+                    <div className="t-tiny muted">
+                      {c.members.length} {c.members.length === 1 ? 'member' : 'members'}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* ─── Topic + context ─────────────────────────────────── */}
         <div>
           <label className="t-tiny" style={{ display: 'block', marginBottom: 6 }}>Topic</label>
           <input
@@ -86,7 +204,7 @@ export function Convene() {
             style={{ fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.55 }}
           />
           <div className="t-tiny muted" style={{ marginTop: 6 }}>
-            ~{contextMd.length} chars · the same context is passed to all five agents.
+            ~{contextMd.length} chars · the same context is passed to every member of the committee.
           </div>
         </div>
 
@@ -100,9 +218,13 @@ export function Convene() {
             size="lg"
             iconRight={ArrowRight}
             onClick={onConvene}
-            disabled={submitting || topic.trim().length === 0}
+            disabled={submitting || topic.trim().length === 0 || !chosenCommittee}
           >
-            {submitting ? 'Convening…' : 'Convene committee'}
+            {submitting
+              ? 'Convening…'
+              : chosenCommittee
+                ? `Convene ${chosenCommittee.name}`
+                : 'Pick a committee'}
           </Btn>
         </div>
       </div>
