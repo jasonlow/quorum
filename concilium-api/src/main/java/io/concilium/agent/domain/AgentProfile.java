@@ -70,6 +70,14 @@ public class AgentProfile {
     @Builder.Default
     private BigDecimal temperature = new BigDecimal("0.70");
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private AgentStatus status = AgentStatus.PUBLISHED;
+
+    @Column(name = "archived_at")
+    private OffsetDateTime archivedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

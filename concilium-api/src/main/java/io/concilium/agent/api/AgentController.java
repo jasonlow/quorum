@@ -4,6 +4,7 @@ import io.concilium.agent.api.dto.AgentGenerateRequest;
 import io.concilium.agent.api.dto.AgentRequest;
 import io.concilium.agent.api.dto.ModelOverrideRequest;
 import io.concilium.agent.domain.AgentProfile;
+import io.concilium.agent.domain.AgentStatus;
 import io.concilium.agent.domain.Bias;
 import io.concilium.agent.service.AgentGenerationService;
 import io.concilium.agent.store.AgentProfileRepository;
@@ -32,25 +33,33 @@ public class AgentController {
     private final AgentProfileRepository agents;
     private final AgentGenerationService generator;
 
+    /** List only PUBLISHED agents — archived rows are hidden from the library. */
     @GetMapping
     public List<AgentProfile> list() {
-        return agents.findAll();
+        return agents.findAllByStatusOrderByNameAsc(AgentStatus.PUBLISHED);
     }
 
+    /**
+     * Fetch a single agent regardless of status. Archived rows are still
+     * readable by id — useful when an audit JSON references one historically.
+     */
     @GetMapping("/{id}")
     public AgentProfile get(@PathVariable UUID id) {
         return agents.findById(id).orElseThrow(
             () -> new ResponseStatusException(NOT_FOUND, "Agent not found: " + id));
     }
 
-    /** Create a new agent profile. 409 if a row with the same name exists. */
+    /**
+     * Create a new agent profile. 409 if another PUBLISHED agent already
+     * uses this name. Archived agents may share the name with the new one.
+     */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
     public AgentProfile create(@Valid @RequestBody AgentRequest req) {
-        agents.findByName(req.name()).ifPresent(existing -> {
+        agents.findByNameAndStatus(req.name(), AgentStatus.PUBLISHED).ifPresent(existing -> {
             throw new ResponseStatusException(CONFLICT,
-                "Agent with name '" + req.name() + "' already exists (id=" + existing.getId() + ")");
+                "Another agent with name '" + req.name() + "' is already published (id=" + existing.getId() + ")");
         });
         AgentProfile saved = agents.save(toEntity(new AgentProfile(), req));
         log.info("Created agent: name='{}' id={}", saved.getName(), saved.getId());
@@ -64,11 +73,11 @@ public class AgentController {
         AgentProfile existing = agents.findById(id).orElseThrow(
             () -> new ResponseStatusException(NOT_FOUND, "Agent not found: " + id));
 
-        // Prevent renaming onto an existing agent (other than self)
-        agents.findByName(req.name()).ifPresent(other -> {
+        // Prevent renaming onto another PUBLISHED agent
+        agents.findByNameAndStatus(req.name(), AgentStatus.PUBLISHED).ifPresent(other -> {
             if (!other.getId().equals(id)) {
                 throw new ResponseStatusException(CONFLICT,
-                    "Another agent with name '" + req.name() + "' already exists");
+                    "Another published agent with name '" + req.name() + "' already exists");
             }
         });
 
@@ -78,9 +87,18 @@ public class AgentController {
     }
 
     /**
-     * Delete an agent. Returns 409 if the agent is currently a member of
-     * any committee or has any session_agent_states rows — protects audit
-     * provenance for past sessions.
+     * Soft-delete: mark the agent ARCHIVED and stamp {@code archived_at}.
+     *
+     * <p>The row remains in the DB so that {@code committee_members} and
+     * {@code session_agent_states} foreign keys stay valid — historical
+     * sessions continue to reference the exact agent profile they ran with.
+     * Library listings + new committee composition skip ARCHIVED rows.
+     *
+     * <p>An archived agent's name becomes available again to a brand-new
+     * PUBLISHED agent (partial unique index on {@code name} where status =
+     * 'PUBLISHED'). Multiple archived rows may share a name.
+     *
+     * <p>Idempotent — archiving an already-archived agent is a no-op (204).
      */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -88,15 +106,14 @@ public class AgentController {
     public void delete(@PathVariable UUID id) {
         AgentProfile existing = agents.findById(id).orElseThrow(
             () -> new ResponseStatusException(NOT_FOUND, "Agent not found: " + id));
-        if (agents.isReferenced(id)) {
-            throw new ResponseStatusException(CONFLICT,
-                "Agent '" + existing.getName()
-                + "' is referenced by at least one committee or session "
-                + "and cannot be deleted. Remove from committees first, or "
-                + "archive support is a Phase 1 feature.");
+        if (existing.getStatus() == AgentStatus.ARCHIVED) {
+            log.info("Agent already archived: name='{}' id={} (no-op)", existing.getName(), id);
+            return;
         }
-        agents.delete(existing);
-        log.info("Deleted agent: name='{}' id={}", existing.getName(), id);
+        existing.setStatus(AgentStatus.ARCHIVED);
+        existing.setArchivedAt(java.time.OffsetDateTime.now());
+        agents.save(existing);
+        log.info("Archived agent: name='{}' id={}", existing.getName(), id);
     }
 
     /**
