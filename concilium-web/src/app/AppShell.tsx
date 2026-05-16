@@ -1,8 +1,9 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 
 const NAV: Array<{ to: string; label: string; end?: boolean }> = [
-  { to: '/',      label: 'Dashboard', end: true },
-  { to: '/audit', label: 'Audit log' },
+  { to: '/',       label: 'Dashboard', end: true },
+  { to: '/agents', label: 'Agents' },
+  { to: '/audit',  label: 'Audit log' },
 ];
 
 export function AppShell() {

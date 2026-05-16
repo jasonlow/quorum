@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './app/AppShell';
+import { AgentLibrary } from './pages/AgentLibrary';
 import { AuditLog } from './pages/AuditLog';
 import { Boardroom } from './pages/Boardroom';
 import { BriefPage } from './pages/Brief';
@@ -14,6 +15,7 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<Dashboard />} />
           <Route path="/convene" element={<Convene />} />
+          <Route path="/agents" element={<AgentLibrary />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/sessions/:id" element={<Boardroom />} />
           <Route path="/sessions/:id/brief" element={<BriefPage />} />

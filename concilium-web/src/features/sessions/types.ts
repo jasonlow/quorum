@@ -41,11 +41,21 @@ export type SessionView = {
   agents: AgentEntry[];
 };
 
+export type Bias = {
+  bias: string;
+  strength: number;     // 0.0–1.0
+};
+
 export type Agent = {
   id: string;
   name: string;
   description?: string | null;
+  skills?: string[];
   ideology?: string | null;
+  biases?: Bias[];
+  boundaries?: string[];
+  speakingStyle?: string | null;
+  systemPrompt?: string | null;
   modelOverride?: string | null;
   temperature?: number;
 };
