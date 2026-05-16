@@ -53,7 +53,19 @@ public class AgentGenerationService {
 
         try {
             String cleaned = stripCodeFence(raw);
-            AgentRequest result = json.readValue(cleaned, AgentRequest.class);
+            AgentRequest parsed = json.readValue(cleaned, AgentRequest.class);
+            // Belt-and-braces: drop any modelOverride the LLM hallucinated.
+            // The chair selects the model separately via the UI control after
+            // reviewing the generated profile. (Observed failure: LLM
+            // occasionally fabricates names like "deepseek-v4-flash" that
+            // DeepSeek doesn't recognise.)
+            AgentRequest result = new AgentRequest(
+                parsed.name(), parsed.description(), parsed.skills(),
+                parsed.ideology(), parsed.biases(), parsed.boundaries(),
+                parsed.speakingStyle(), parsed.systemPrompt(),
+                null,                       // ← modelOverride forced null
+                parsed.temperature()
+            );
             log.info("Generated agent draft: name='{}' ideology='{}' biases={} skills={}",
                 result.name(), result.ideology(),
                 result.biases() == null ? 0 : result.biases().size(),
