@@ -100,6 +100,12 @@ export const committeesApi = {
     http<CommitteeView>(`/api/v1/committees/${id}/restore`, { method: 'POST' }),
 };
 
+/** Draft returned by POST /sessions/generate-agenda — not yet persisted. */
+export type AgendaDraft = {
+  topic: string;
+  contextMd: string;
+};
+
 export const sessionsApi = {
   convene: (body: ConveneBody) =>
     http<SessionView>('/api/v1/sessions', { method: 'POST', body }),
@@ -108,6 +114,13 @@ export const sessionsApi = {
     http<SessionListItem[]>(`/api/v1/sessions?limit=${limit}`),
 
   get: (id: string) => http<SessionView>(`/api/v1/sessions/${id}`),
+
+  /** NL → {topic, contextMd}. Pre-fills the Convene form. */
+  generateAgenda: (committeeId: string | null, description: string) =>
+    http<AgendaDraft>('/api/v1/sessions/generate-agenda', {
+      method: 'POST',
+      body: { committeeId, description },
+    }),
 
   deliberate: (id: string) =>
     http<{ sessionId: string; streamUrl: string; message: string }>(

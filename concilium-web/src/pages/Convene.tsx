@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check } from 'lucide-react';
+import { ArrowRight, Check, Sparkles } from 'lucide-react';
 import { Btn } from '@/ui/Btn';
 import { Avatar } from '@/ui/Avatar';
 import { Pill } from '@/ui/Pill';
@@ -54,6 +54,12 @@ export function Convene() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // NL agenda-generation panel
+  const [nlOpen, setNlOpen] = useState(false);
+  const [nlText, setNlText] = useState('');
+  const [nlBusy, setNlBusy] = useState(false);
+  const [nlError, setNlError] = useState<string | null>(null);
+
   useEffect(() => {
     committeesApi.list('PUBLISHED')
       .then(list => {
@@ -81,6 +87,23 @@ export function Convene() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function runGenerate() {
+    if (!nlText.trim()) return;
+    setNlBusy(true);
+    setNlError(null);
+    try {
+      const draft = await sessionsApi.generateAgenda(committeeId, nlText.trim());
+      setTopic(draft.topic ?? '');
+      setContextMd(draft.contextMd ?? '');
+      setNlOpen(false);
+      setNlText('');
+    } catch (e) {
+      setNlError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setNlBusy(false);
     }
   }
 
@@ -182,6 +205,56 @@ export function Convene() {
             </div>
           )}
         </section>
+
+        {/* ─── NL agenda generator (optional pre-fill) ─────────── */}
+        <div className="card" style={{
+          padding: 14,
+          background: 'var(--accent-bg)',
+          border: '1px solid var(--accent)',
+        }}>
+          <div className="row gap-3" style={{ alignItems: 'center' }}>
+            <Sparkles size={16} strokeWidth={1.7} style={{ color: 'var(--accent)' }} />
+            <div className="t-h3" style={{ margin: 0, color: 'var(--accent)' }}>
+              Generate agenda from description
+            </div>
+            <div className="grow" />
+            {!nlOpen && (
+              <Btn kind="accent" size="sm" type="button" onClick={() => setNlOpen(true)}>
+                Describe the topic
+              </Btn>
+            )}
+          </div>
+
+          {nlOpen && (
+            <div style={{ marginTop: 12 }}>
+              <textarea
+                className="input"
+                value={nlText}
+                onChange={(e) => setNlText(e.target.value)}
+                placeholder={
+                  chosenCommittee
+                    ? `e.g. a structured product offering ETH exposure with downside protection, 12-month tenor, accredited investors only — pitched at ${chosenCommittee.name}`
+                    : 'e.g. a new structured product proposal, a client onboarding case, an engineering change request…'
+                }
+                rows={4}
+              />
+              <div className="t-tiny muted" style={{ marginTop: 4 }}>
+                {chosenCommittee
+                  ? `Will be pitched for ${chosenCommittee.name} — pick a different committee above to retarget.`
+                  : 'Pick a committee above for better-targeted output.'}
+              </div>
+              {nlError && <div className="notice notice-err" style={{ marginTop: 8 }}>{nlError}</div>}
+              <div className="row gap-2" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+                <Btn type="button" onClick={() => { setNlOpen(false); setNlText(''); setNlError(null); }} disabled={nlBusy}>
+                  Cancel
+                </Btn>
+                <Btn kind="accent" icon={Sparkles} type="button" onClick={runGenerate} disabled={nlBusy || !nlText.trim()}>
+                  {nlBusy ? 'Generating…' : 'Generate agenda'}
+                </Btn>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ─── Topic + context ─────────────────────────────────── */}
         <div>
