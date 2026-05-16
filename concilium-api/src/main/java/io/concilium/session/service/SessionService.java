@@ -8,6 +8,7 @@ import io.concilium.committee.store.CommitteeMemberRepository;
 import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.session.api.dto.AgentDraftView;
 import io.concilium.session.api.dto.ConveneRequest;
+import io.concilium.session.api.dto.SessionListItem;
 import io.concilium.session.api.dto.SessionView;
 import io.concilium.session.domain.AgentRunState;
 import io.concilium.session.domain.Phase;
@@ -146,6 +147,13 @@ public class SessionService {
         Session s = sessions.findById(sessionId).orElseThrow(
             () -> new ResponseStatusException(NOT_FOUND, "Session not found: " + sessionId));
         return toView(s);
+    }
+
+    /** Recent sessions newest-first, with decision summary joined. */
+    @Transactional(readOnly = true)
+    public List<SessionListItem> listRecent(int limit) {
+        int capped = Math.max(1, Math.min(limit, 500));
+        return sessions.listRecent(org.springframework.data.domain.PageRequest.of(0, capped));
     }
 
     // ---------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { http } from '@/lib/http';
 import type {
-  Agent, BriefView, DecideRequest, DecideResponse, SessionView,
+  Agent, BriefView, DecideRequest, DecideResponse,
+  SessionListItem, SessionView,
 } from './types';
 
 export const agentsApi = {
@@ -22,6 +23,9 @@ export type ConveneBody = {
 export const sessionsApi = {
   convene: (body: ConveneBody) =>
     http<SessionView>('/api/v1/sessions', { method: 'POST', body }),
+
+  list: (limit = 50) =>
+    http<SessionListItem[]>(`/api/v1/sessions?limit=${limit}`),
 
   get: (id: string) => http<SessionView>(`/api/v1/sessions/${id}`),
 

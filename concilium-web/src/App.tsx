@@ -1,9 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './app/AppShell';
-import { Dashboard } from './pages/Dashboard';
-import { Convene } from './pages/Convene';
+import { AuditLog } from './pages/AuditLog';
 import { Boardroom } from './pages/Boardroom';
 import { BriefPage } from './pages/Brief';
+import { Convene } from './pages/Convene';
+import { Dashboard } from './pages/Dashboard';
 import { SessionComplete } from './pages/SessionComplete';
 
 export function App() {
@@ -13,6 +14,7 @@ export function App() {
         <Route element={<AppShell />}>
           <Route index element={<Dashboard />} />
           <Route path="/convene" element={<Convene />} />
+          <Route path="/audit" element={<AuditLog />} />
           <Route path="/sessions/:id" element={<Boardroom />} />
           <Route path="/sessions/:id/brief" element={<BriefPage />} />
           <Route path="/sessions/:id/complete" element={<SessionComplete />} />

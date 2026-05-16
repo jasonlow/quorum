@@ -1,11 +1,25 @@
-import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Gavel } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Gavel, Scroll } from 'lucide-react';
 import { Btn } from '@/ui/Btn';
 import { Pill } from '@/ui/Pill';
 import { PageHeader } from '@/ui/PageHeader';
+import { SessionRow } from '@/ui/SessionRow';
+import { sessionsApi } from '@/features/sessions/api';
+import type { SessionListItem } from '@/features/sessions/types';
+
+const RECENT_LIMIT = 6;
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const [recent, setRecent] = useState<SessionListItem[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    sessionsApi.list(RECENT_LIMIT)
+      .then(setRecent)
+      .catch(e => setErr(e instanceof Error ? e.message : String(e)));
+  }, []);
 
   return (
     <>
@@ -53,10 +67,44 @@ export function Dashboard() {
       </section>
 
       <section style={{ marginTop: 32 }}>
-        <div className="t-h2" style={{ marginBottom: 12 }}>Recent sessions</div>
-        <div className="empty-state">
-          No history yet. Convene a session to see it here.
+        <div className="row gap-3" style={{ alignItems: 'baseline', marginBottom: 12 }}>
+          <div className="t-h2">Recent sessions</div>
+          <div className="grow" />
+          <Link to="/audit" style={{ textDecoration: 'none' }}>
+            <Btn kind="ghost" icon={Scroll}>Audit log</Btn>
+          </Link>
         </div>
+
+        {err && <div className="notice notice-err">{err}</div>}
+
+        {!err && recent === null && (
+          <div className="t-body-sm muted" style={{ padding: 24 }}>Loading…</div>
+        )}
+
+        {!err && recent !== null && recent.length === 0 && (
+          <div className="empty-state">
+            No history yet. Convene a session to see it here.
+          </div>
+        )}
+
+        {!err && recent !== null && recent.length > 0 && (
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Topic</th>
+                  <th>Phase</th>
+                  <th>Decision</th>
+                  <th>Chair</th>
+                  <th>Started</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map(r => <SessionRow key={r.sessionId} row={r} />)}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </>
   );

@@ -1,4 +1,9 @@
-import { Link, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet } from 'react-router-dom';
+
+const NAV: Array<{ to: string; label: string; end?: boolean }> = [
+  { to: '/',      label: 'Dashboard', end: true },
+  { to: '/audit', label: 'Audit log' },
+];
 
 export function AppShell() {
   return (
@@ -9,9 +14,19 @@ export function AppShell() {
           <span className="ws">· Atlas Capital · Singapore</span>
         </Link>
         <div className="grow" />
-        <Link to="/" className="t-tiny" style={{ textDecoration: 'none' }}>
-          Dashboard
-        </Link>
+        <nav className="row gap-2">
+          {NAV.map(n => (
+            <NavLink
+              key={n.to}
+              to={n.to}
+              end={n.end}
+              className={({ isActive }) => `chip ${isActive ? 'chip-on' : ''}`}
+              style={{ textDecoration: 'none' }}
+            >
+              {n.label}
+            </NavLink>
+          ))}
+        </nav>
       </header>
       <main className="app-stage">
         <Outlet />

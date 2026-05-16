@@ -2,6 +2,7 @@ package io.concilium.session.api;
 
 import io.concilium.session.api.dto.AgentDraftView;
 import io.concilium.session.api.dto.ConveneRequest;
+import io.concilium.session.api.dto.SessionListItem;
 import io.concilium.session.api.dto.SessionView;
 import io.concilium.session.orchestrator.RoundRobinOrchestrator;
 import io.concilium.session.service.SessionService;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,6 +29,15 @@ public class SessionController {
     @ResponseStatus(HttpStatus.CREATED)
     public SessionView convene(@Valid @RequestBody ConveneRequest req) {
         return service.convene(req);
+    }
+
+    /**
+     * List recent sessions, newest first, with decision summary joined.
+     * Used by the Dashboard recent-sessions widget and the Audit Log page.
+     */
+    @GetMapping
+    public List<SessionListItem> list(@RequestParam(defaultValue = "50") int limit) {
+        return service.listRecent(limit);
     }
 
     /** Read a session's current state (phase + agent states). */

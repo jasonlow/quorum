@@ -102,3 +102,14 @@ export type DecideResponse = {
     payloadPath: string;
   };
 };
+
+export type SessionListItem = {
+  sessionId: string;
+  topic: string;
+  phase: Phase;
+  startedAt: string;
+  endedAt: string | null;
+  decisionType: DecisionType | null;
+  chairLabel: string | null;
+  sealedAt: string | null;
+};
