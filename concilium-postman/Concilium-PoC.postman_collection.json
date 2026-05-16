@@ -1,0 +1,319 @@
+{
+  "info": {
+    "name": "Concilium PoC",
+    "description": "AI Committee Platform — local PoC.\n\nFlow:\n1. **Health** — verify backend is up.\n2. **Agents → List & populate IDs** — fetches /api/v1/agents and saves each persona's UUID to collection variables (`riskManagerId`, `strategistId`, etc.).\n3. **Sessions → Convene (ETH Accumulator)** — creates a session against the seeded Investment Risk Committee and stores `sessionId`.\n4. **Sessions → Run <persona>** — invokes one agent against DeepSeek and stores the draft.\n5. **Sessions → Get session state** — read all agent tiles after each run.\n\nRun the whole `Sessions` folder in **Collection Runner** to do the full end-to-end demo.\n\nRequires the `Concilium Local` environment to be selected.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "concilium-poc"
+  },
+  "variable": [
+    { "key": "sessionId", "value": "" },
+    { "key": "riskManagerId", "value": "" },
+    { "key": "strategistId", "value": "" },
+    { "key": "complianceOfficerId", "value": "" },
+    { "key": "treasuryOpsId", "value": "" },
+    { "key": "macroEconomistId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Health",
+      "item": [
+        {
+          "name": "GET /actuator/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('status UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Agents",
+      "item": [
+        {
+          "name": "List agents & populate IDs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/agents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "agents"]
+            },
+            "description": "Lists all seeded agents AND saves each persona's UUID to a collection variable so subsequent requests can run that specific agent.\n\nCollection vars set after this runs:\n- `riskManagerId`\n- `strategistId`\n- `complianceOfficerId`\n- `treasuryOpsId`\n- `macroEconomistId`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const agents = pm.response.json();",
+                  "pm.test('5 agents seeded', () => pm.expect(agents).to.have.lengthOf(5));",
+                  "",
+                  "const byName = (n) => (agents.find(a => a.name === n) || {}).id;",
+                  "",
+                  "pm.collectionVariables.set('riskManagerId',       byName('Risk Manager'));",
+                  "pm.collectionVariables.set('strategistId',        byName('Investment Strategist'));",
+                  "pm.collectionVariables.set('complianceOfficerId', byName('Compliance Officer'));",
+                  "pm.collectionVariables.set('treasuryOpsId',       byName('Treasury / Ops'));",
+                  "pm.collectionVariables.set('macroEconomistId',    byName('Macro Economist'));",
+                  "",
+                  "console.log('Agent IDs saved to collection variables:');",
+                  "console.log('  Risk Manager        :', pm.collectionVariables.get('riskManagerId'));",
+                  "console.log('  Investment Strategist:', pm.collectionVariables.get('strategistId'));",
+                  "console.log('  Compliance Officer  :', pm.collectionVariables.get('complianceOfficerId'));",
+                  "console.log('  Treasury / Ops      :', pm.collectionVariables.get('treasuryOpsId'));",
+                  "console.log('  Macro Economist     :', pm.collectionVariables.get('macroEconomistId'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Sessions",
+      "item": [
+        {
+          "name": "Convene (ETH Accumulator Series 3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Review ETH Accumulator Series 3 — proposed structured product for accredited investors. Tenor 12 months, knock-in at 70% of strike, 18% coupon p.a. paid monthly in USDC. Notional USD 10M target, USD 250K minimum subscription.\",\n  \"contextMd\": \"# Product Memo — ETH Accumulator Series 3\\n\\n**Status:** Proposed\\n**Target audience:** Accredited investors only\\n**Tenor:** 12 months\\n**Notional:** USD 10M target, minimum subscription USD 250K\\n\\n## Structure\\n\\n- Daily accumulation of ETH against USD at the prevailing spot, with a knock-in barrier at **70% of strike**.\\n- Strike set at issuance based on T-1 VWAP.\\n- If spot trades through the knock-in barrier at any point during the tenor, the accumulation rate doubles for the remainder of the period.\\n- Coupon: **18% p.a.**, paid in stablecoin (USDC) monthly.\\n\\n## Collateral\\n\\n- Initial proposed collateral buffer: **15%** of notional, held in USD or USDC.\\n- Margin call triggered at 7% buffer utilisation.\\n- No automatic top-up; client receives 24h margin notice before forced liquidation.\\n\\n## Pricing Reference\\n\\n- ETH/USD spot at T-1: **USD 3,245** (vol 60-day = 58%, implied 1m ATM = 64%)\\n- Funding cost assumption: **5.25%** USD curve\\n- Internal model PnL break-even at spot down **22%**\\n\\n## Market Context\\n\\n- Fed: pause through Q2 expected; market pricing one cut in H2.\\n- ETH spot has retraced **17%** from the 90-day high.\\n- Stablecoin redemption flows: net outflows for the second consecutive month.\\n- Comparable accumulators from competitors are pricing 12–16% coupons at similar barriers.\\n\\n## Operational Notes\\n\\n- Custody arranged via Fireblocks workspace `atlas-prod-01`.\\n- Settlement: T+1 on USDC leg, T+0 on stablecoin coupon distribution.\\n- Existing accumulator book historical drawdown behaviour: of 47 client positions in the prior 24 months, 8 hit knock-in. Of those, 6 self-topped collateral within 12 hours of margin notice.\\n\\n## Regulatory Posture\\n\\n- Classified internally as a **specified investment product** (SIP) for accredited investors only.\\n- No retail distribution.\\n- Disclosure document drafted; pending Compliance review.\\n\\n## Open Questions\\n\\n1. Is a 15% collateral buffer appropriate, or should it be tiered (e.g., 10% base + 5% contingency)?\\n2. How does the H2 Fed rate uncertainty affect product attractiveness over the 12-month horizon?\\n3. What is the firm's exposure if multiple clients hit knock-in simultaneously?\\n\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions"]
+            },
+            "description": "Convene a new session against the seeded Investment Risk Committee.\n\nThe full ETH Accumulator Series 3 product memo is embedded as `contextMd` so every persona has the same brief to react to.\n\nOn 201, this saves the returned `id` to the `sessionId` collection variable, which downstream requests use."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('has session id', () => pm.expect(body.id).to.be.a('string'));",
+                  "pm.test('5 agents in QUEUED', () => {",
+                  "  pm.expect(body.agents).to.have.lengthOf(5);",
+                  "  body.agents.forEach(a => pm.expect(a.state).to.eql('QUEUED'));",
+                  "});",
+                  "pm.collectionVariables.set('sessionId', body.id);",
+                  "console.log('Session id:', body.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get session state",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}"]
+            },
+            "description": "Read the current session state — phase + all agent tiles. Use this after each `Run <persona>` to see the state machine progress."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "console.log('Phase:', body.phase);",
+                  "body.agents.forEach(a => console.log(`  ${a.agentName.padEnd(24)} ${a.state}  draft=${a.hasDraft}`));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run — Risk Manager",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/run-one-agent?agentId={{riskManagerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "run-one-agent"],
+              "query": [
+                { "key": "agentId", "value": "{{riskManagerId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('state SUBMITTED', () => pm.expect(body.state).to.eql('SUBMITTED'));",
+                  "pm.test('draft non-empty', () => pm.expect(body.draft.length).to.be.greaterThan(50));",
+                  "console.log(`model=${body.modelUsed} in/out=${body.promptTokens}/${body.completionTokens} latency=${body.latencyMs}ms`);",
+                  "console.log('--- Risk Manager draft ---');",
+                  "console.log(body.draft);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run — Investment Strategist",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/run-one-agent?agentId={{strategistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "run-one-agent"],
+              "query": [
+                { "key": "agentId", "value": "{{strategistId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('state SUBMITTED', () => pm.expect(body.state).to.eql('SUBMITTED'));",
+                  "console.log(`model=${body.modelUsed} in/out=${body.promptTokens}/${body.completionTokens} latency=${body.latencyMs}ms`);",
+                  "console.log('--- Investment Strategist draft ---');",
+                  "console.log(body.draft);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run — Compliance Officer",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/run-one-agent?agentId={{complianceOfficerId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "run-one-agent"],
+              "query": [
+                { "key": "agentId", "value": "{{complianceOfficerId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('state SUBMITTED', () => pm.expect(body.state).to.eql('SUBMITTED'));",
+                  "console.log(`model=${body.modelUsed} in/out=${body.promptTokens}/${body.completionTokens} latency=${body.latencyMs}ms`);",
+                  "console.log('--- Compliance Officer draft ---');",
+                  "console.log(body.draft);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run — Treasury / Ops",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/run-one-agent?agentId={{treasuryOpsId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "run-one-agent"],
+              "query": [
+                { "key": "agentId", "value": "{{treasuryOpsId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('state SUBMITTED', () => pm.expect(body.state).to.eql('SUBMITTED'));",
+                  "console.log(`model=${body.modelUsed} in/out=${body.promptTokens}/${body.completionTokens} latency=${body.latencyMs}ms`);",
+                  "console.log('--- Treasury / Ops draft ---');",
+                  "console.log(body.draft);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Run — Macro Economist",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/sessions/{{sessionId}}/run-one-agent?agentId={{macroEconomistId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "sessions", "{{sessionId}}", "run-one-agent"],
+              "query": [
+                { "key": "agentId", "value": "{{macroEconomistId}}" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('state SUBMITTED', () => pm.expect(body.state).to.eql('SUBMITTED'));",
+                  "console.log(`model=${body.modelUsed} in/out=${body.promptTokens}/${body.completionTokens} latency=${body.latencyMs}ms`);",
+                  "console.log('--- Macro Economist draft ---');",
+                  "console.log(body.draft);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -16,6 +16,7 @@ This repo holds:
 | `ai-committee-poc-plan.md` | This PoC's plan, schedule, and DoD |
 | `concilium-api/` | Spring Boot 3.5 backend (Java 21, Maven) |
 | `concilium-web/` | React 18 + Vite frontend (Week 3) |
+| `concilium-postman/` | Postman collection + environment for API testing |
 | `design_handoff_concilium/` | Hi-fi design tokens & components |
 
 ## Quick start
@@ -66,3 +67,11 @@ curl -s http://localhost:8080/api/v1/agents | jq
 ```
 
 That should return 5 seeded agents — the Investment Risk Committee.
+
+## Testing with Postman
+
+A curated Postman collection lives at [`concilium-postman/`](concilium-postman/).
+Import both `.json` files into Postman, select the **Concilium Local**
+environment, and run the `Sessions` folder to drive the full ETH
+Accumulator demo through the backend. See
+[concilium-postman/README.md](concilium-postman/README.md) for details.
