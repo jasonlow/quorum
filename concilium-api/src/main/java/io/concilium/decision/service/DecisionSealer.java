@@ -1,6 +1,5 @@
 package io.concilium.decision.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.concilium.audit.domain.AuditRecord;
 import io.concilium.audit.service.CanonicalPayloadBuilder;
 import io.concilium.audit.store.AuditRecordRepository;
@@ -61,7 +60,6 @@ public class DecisionSealer {
     private final CanonicalPayloadBuilder payloadBuilder;
     private final AuditRecordRepository auditRecords;
     private final Signer signer;
-    private final ObjectMapper json;        // for pretty-writing the envelope file
 
     @Value("${concilium.audit.payload-dir}")
     private String payloadDir;
@@ -119,9 +117,14 @@ public class DecisionSealer {
         try {
             Path path = envelopePath(sessionId);
             Files.createDirectories(path.getParent());
-            // Pretty-print for human readability — verifier re-canonicalises
-            // only the "payload" sub-object, so envelope formatting is irrelevant.
-            json.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), envelope);
+            // Must use the canonical mapper here — Spring Boot's default
+            // ObjectMapper preserves local timezone offsets and microsecond
+            // precision on OffsetDateTime, which differs from what was hashed.
+            // Pretty-print is per-writer; the underlying canonical formatting
+            // (sorted keys, UTC-millis-Z dates, NON_NULL) is preserved.
+            CanonicalSerializer.mapper()
+                .writerWithDefaultPrettyPrinter()
+                .writeValue(path.toFile(), envelope);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to write audit envelope", e);
         }
