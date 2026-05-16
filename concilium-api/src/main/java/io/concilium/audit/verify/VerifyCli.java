@@ -55,7 +55,7 @@ public final class VerifyCli {
         }
     }
 
-    static int verify(Path envelopePath, Path publicKeyPath) throws Exception {
+    public static int verify(Path envelopePath, Path publicKeyPath) throws Exception {
         if (!Files.exists(envelopePath)) {
             System.err.println("✗ Envelope file not found: " + envelopePath);
             return 2;
