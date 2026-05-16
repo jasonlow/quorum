@@ -49,6 +49,14 @@ public class Committee {
     @Builder.Default
     private int maxRevisionRounds = 1;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private CommitteeStatus status = CommitteeStatus.PUBLISHED;
+
+    @Column(name = "archived_at")
+    private OffsetDateTime archivedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

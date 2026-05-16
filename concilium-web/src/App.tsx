@@ -5,6 +5,8 @@ import { AgentLibrary } from './pages/AgentLibrary';
 import { AuditLog } from './pages/AuditLog';
 import { Boardroom } from './pages/Boardroom';
 import { BriefPage } from './pages/Brief';
+import { CommitteeEditor } from './pages/CommitteeEditor';
+import { CommitteeLibrary } from './pages/CommitteeLibrary';
 import { Convene } from './pages/Convene';
 import { Dashboard } from './pages/Dashboard';
 import { SessionComplete } from './pages/SessionComplete';
@@ -19,6 +21,9 @@ export function App() {
           <Route path="/agents" element={<AgentLibrary />} />
           <Route path="/agents/new" element={<AgentEditor />} />
           <Route path="/agents/:id/edit" element={<AgentEditor />} />
+          <Route path="/committees" element={<CommitteeLibrary />} />
+          <Route path="/committees/new" element={<CommitteeEditor />} />
+          <Route path="/committees/:id/edit" element={<CommitteeEditor />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/sessions/:id" element={<Boardroom />} />
           <Route path="/sessions/:id/brief" element={<BriefPage />} />

@@ -1,6 +1,7 @@
 import { http } from '@/lib/http';
 import type {
-  Agent, BriefView, DecideRequest, DecideResponse,
+  Agent, BriefView, CommitteeStatus, CommitteeView,
+  DecideRequest, DecideResponse, OrchestrationPattern, QaIntensity,
   SessionListItem, SessionView,
 } from './types';
 
@@ -21,8 +22,12 @@ export type AgentRequest = {
   temperature: number;
 };
 
+export type AgentStatus = 'PUBLISHED' | 'ARCHIVED';
+
 export const agentsApi = {
-  list: () => http<Agent[]>('/api/v1/agents'),
+  list: (status: AgentStatus = 'PUBLISHED') =>
+    http<Agent[]>(`/api/v1/agents?status=${status}`),
+
   get:  (id: string) => http<Agent>(`/api/v1/agents/${id}`),
 
   create: (body: AgentRequest) =>
@@ -33,6 +38,9 @@ export const agentsApi = {
 
   remove: (id: string) =>
     http<void>(`/api/v1/agents/${id}`, { method: 'DELETE' }),
+
+  restore: (id: string) =>
+    http<Agent>(`/api/v1/agents/${id}/restore`, { method: 'POST' }),
 
   /** NL → structured draft profile. Returns a draft (NOT saved). */
   generate: (description: string) =>
@@ -52,6 +60,44 @@ export type ConveneBody = {
   committeeId?: string;
   topic: string;
   contextMd?: string;
+};
+
+// ───────────────────────────────────────────────────────────────
+// Committees
+// ───────────────────────────────────────────────────────────────
+
+export type CommitteeMemberRequest = {
+  agentId: string;
+  weight?: number | null;
+};
+
+export type CommitteeRequest = {
+  name: string;
+  description?: string;
+  orchestrationPattern: OrchestrationPattern;
+  qaIntensity: QaIntensity;
+  decisionRule: string;
+  maxRevisionRounds?: number;
+  members: CommitteeMemberRequest[];
+};
+
+export const committeesApi = {
+  list: (status: CommitteeStatus = 'PUBLISHED') =>
+    http<CommitteeView[]>(`/api/v1/committees?status=${status}`),
+
+  get: (id: string) => http<CommitteeView>(`/api/v1/committees/${id}`),
+
+  create: (body: CommitteeRequest) =>
+    http<CommitteeView>('/api/v1/committees', { method: 'POST', body }),
+
+  update: (id: string, body: CommitteeRequest) =>
+    http<CommitteeView>(`/api/v1/committees/${id}`, { method: 'PUT', body }),
+
+  remove: (id: string) =>
+    http<void>(`/api/v1/committees/${id}`, { method: 'DELETE' }),
+
+  restore: (id: string) =>
+    http<CommitteeView>(`/api/v1/committees/${id}/restore`, { method: 'POST' }),
 };
 
 export const sessionsApi = {

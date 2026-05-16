@@ -123,3 +123,32 @@ export type SessionListItem = {
   chairLabel: string | null;
   sealedAt: string | null;
 };
+
+// ───────────────────────────────────────────────────────────────
+// Committees
+// ───────────────────────────────────────────────────────────────
+
+export type OrchestrationPattern = 'ROUND_ROBIN' | 'VOTE' | 'PARALLEL';
+export type QaIntensity          = 'NONE' | 'SINGLE' | 'DEEP';
+export type CommitteeStatus      = 'PUBLISHED' | 'ARCHIVED';
+
+export type CommitteeMemberView = {
+  agentId: string;
+  agentName: string;
+  speakingOrder: number;
+  weight: number;
+};
+
+export type CommitteeView = {
+  id: string;
+  name: string;
+  description?: string | null;
+  orchestrationPattern: OrchestrationPattern;
+  qaIntensity: QaIntensity;
+  decisionRule: string;
+  maxRevisionRounds: number;
+  status: CommitteeStatus;
+  archivedAt?: string | null;
+  createdAt: string;
+  members: CommitteeMemberView[];
+};

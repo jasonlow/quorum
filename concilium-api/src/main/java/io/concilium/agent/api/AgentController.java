@@ -33,10 +33,14 @@ public class AgentController {
     private final AgentProfileRepository agents;
     private final AgentGenerationService generator;
 
-    /** List only PUBLISHED agents — archived rows are hidden from the library. */
+    /**
+     * Lists agents filtered by {@code status}. Defaults to PUBLISHED for
+     * the library; the "Show archived" tab passes {@code ARCHIVED}.
+     */
     @GetMapping
-    public List<AgentProfile> list() {
-        return agents.findAllByStatusOrderByNameAsc(AgentStatus.PUBLISHED);
+    public List<AgentProfile> list(
+            @RequestParam(name = "status", defaultValue = "PUBLISHED") AgentStatus status) {
+        return agents.findAllByStatusOrderByNameAsc(status);
     }
 
     /**
@@ -114,6 +118,32 @@ public class AgentController {
         existing.setArchivedAt(java.time.OffsetDateTime.now());
         agents.save(existing);
         log.info("Archived agent: name='{}' id={}", existing.getName(), id);
+    }
+
+    /**
+     * Un-archive an agent. Returns 409 if another PUBLISHED agent already
+     * uses its name — caller must rename or archive the conflict first.
+     * Idempotent: restoring an already-published agent is a no-op.
+     */
+    @PostMapping("/{id}/restore")
+    @Transactional
+    public AgentProfile restore(@PathVariable UUID id) {
+        AgentProfile existing = agents.findById(id).orElseThrow(
+            () -> new ResponseStatusException(NOT_FOUND, "Agent not found: " + id));
+        if (existing.getStatus() == AgentStatus.PUBLISHED) {
+            return existing;
+        }
+        agents.findByNameAndStatus(existing.getName(), AgentStatus.PUBLISHED).ifPresent(other -> {
+            throw new ResponseStatusException(CONFLICT,
+                "Cannot restore '" + existing.getName()
+                + "' — another published agent already uses this name "
+                + "(id=" + other.getId() + "). Rename or archive the conflict first.");
+        });
+        existing.setStatus(AgentStatus.PUBLISHED);
+        existing.setArchivedAt(null);
+        AgentProfile saved = agents.save(existing);
+        log.info("Restored agent: name='{}' id={}", saved.getName(), id);
+        return saved;
     }
 
     /**

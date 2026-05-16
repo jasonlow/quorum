@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Gavel, Home, Moon, ScrollText, Sun, Users } from 'lucide-react';
+import { Building2, Gavel, Home, Moon, ScrollText, Sun, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTheme } from '@/lib/theme';
 
@@ -16,8 +16,9 @@ const SECTIONS: Array<{ heading: string; items: NavEntry[] }> = [
   {
     heading: 'Manage',
     items: [
-      { to: '/agents', label: 'Agents',    icon: Users },
-      { to: '/audit',  label: 'Audit log', icon: ScrollText },
+      { to: '/agents',     label: 'Agents',     icon: Users },
+      { to: '/committees', label: 'Committees', icon: Building2 },
+      { to: '/audit',      label: 'Audit log',  icon: ScrollText },
     ],
   },
 ];

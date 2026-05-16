@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, Pencil, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { Home, Pencil, Plus, RefreshCw, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { Btn } from '@/ui/Btn';
 import { Pill } from '@/ui/Pill';
 import { Avatar } from '@/ui/Avatar';
 import { PageHeader } from '@/ui/PageHeader';
-import { agentsApi } from '@/features/sessions/api';
+import { agentsApi, type AgentStatus } from '@/features/sessions/api';
 import type { Agent } from '@/features/sessions/types';
 
 const DEFAULT_MODEL = 'deepseek-chat';
@@ -29,15 +29,17 @@ export function AgentLibrary() {
   const [err, setErr] = useState<string | null>(null);
   const [busyAgentId, setBusyAgentId] = useState<string | null>(null);
   const [resettingAll, setResettingAll] = useState(false);
+  const [tab, setTab] = useState<AgentStatus>('PUBLISHED');
 
-  function load() {
+  function load(status: AgentStatus = tab) {
     setErr(null);
-    agentsApi.list()
+    setAgents(null);
+    agentsApi.list(status)
       .then(setAgents)
       .catch(e => setErr(e instanceof Error ? e.message : String(e)));
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(tab); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [tab]);
 
   async function setOverride(agent: Agent, model: string | null) {
     setBusyAgentId(agent.id);
@@ -73,12 +75,13 @@ export function AgentLibrary() {
     }
   }
 
-  async function deleteAgent(a: Agent) {
+  async function archiveAgent(a: Agent) {
     const ok = window.confirm(
-      `Delete agent "${a.name}"?\n\n`
-      + `If the agent is in a committee or has been part of any session, `
-      + `the backend will refuse (returns 409). Seeded committee members `
-      + `are protected this way.`,
+      `Archive agent "${a.name}"?\n\n`
+      + `The row stays in the database (so past sessions still resolve `
+      + `to this exact persona for audit) but it disappears from the `
+      + `library and from new committee composition. You can restore it `
+      + `later from the Archived tab.`,
     );
     if (!ok) return;
     setBusyAgentId(a.id);
@@ -93,27 +96,62 @@ export function AgentLibrary() {
     }
   }
 
+  async function restoreAgent(a: Agent) {
+    setBusyAgentId(a.id);
+    setErr(null);
+    try {
+      await agentsApi.restore(a.id);
+      setAgents(prev => (prev ? prev.filter(x => x.id !== a.id) : prev));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyAgentId(null);
+    }
+  }
+
   const anyOverridden = (agents ?? []).some(a => !!a.modelOverride);
+  const isArchivedView = tab === 'ARCHIVED';
 
   return (
     <>
       <PageHeader
         eyebrow="Manage"
         title="Agent library"
-        sub="Create new committee members, tune existing personas, or route them to a different model. High-stakes agents (Compliance, Risk) benefit from reasoner rigour."
+        sub={isArchivedView
+          ? 'Soft-deleted agents. Restore brings them back to the active library. Historical sessions still reference these rows for audit provenance.'
+          : 'Create new committee members, tune existing personas, or route them to a different model. High-stakes agents (Compliance, Risk) benefit from reasoner rigour.'}
         right={
           <div className="row gap-2">
-            <Btn kind="accent" icon={Plus} onClick={() => navigate('/agents/new')}>
-              New agent
-            </Btn>
-            <Btn icon={RotateCcw} onClick={resetAll} disabled={!anyOverridden || resettingAll}>
-              {resettingAll ? 'Resetting…' : 'Reset all overrides'}
-            </Btn>
-            <Btn icon={RefreshCw} onClick={load}>Refresh</Btn>
+            {!isArchivedView && (
+              <>
+                <Btn kind="accent" icon={Plus} onClick={() => navigate('/agents/new')}>
+                  New agent
+                </Btn>
+                <Btn icon={RotateCcw} onClick={resetAll} disabled={!anyOverridden || resettingAll}>
+                  {resettingAll ? 'Resetting…' : 'Reset all overrides'}
+                </Btn>
+              </>
+            )}
+            <Btn icon={RefreshCw} onClick={() => load(tab)}>Refresh</Btn>
             <Btn icon={Home} onClick={() => navigate('/')}>Dashboard</Btn>
           </div>
         }
       />
+
+      <div className="tab-row" style={{ marginBottom: 20 }}>
+        <div
+          className={`tab-item ${tab === 'PUBLISHED' ? 'is-active' : ''}`}
+          onClick={() => setTab('PUBLISHED')}
+        >
+          Active
+        </div>
+        <div
+          className={`tab-item ${tab === 'ARCHIVED' ? 'is-active' : ''}`}
+          onClick={() => setTab('ARCHIVED')}
+        >
+          Archived
+        </div>
+      </div>
 
       {err && <div className="notice notice-err" style={{ marginBottom: 16 }}>{err}</div>}
 
@@ -122,7 +160,11 @@ export function AgentLibrary() {
       )}
 
       {agents !== null && agents.length === 0 && (
-        <div className="empty-state">No agents seeded yet — restart the backend.</div>
+        <div className="empty-state">
+          {isArchivedView
+            ? 'No archived agents.'
+            : 'No agents yet — click "New agent" to add one.'}
+        </div>
       )}
 
       {agents !== null && agents.length > 0 && (
@@ -132,9 +174,11 @@ export function AgentLibrary() {
               key={a.id}
               agent={a}
               busy={busyAgentId === a.id}
+              archived={isArchivedView}
               onSetModel={(model) => setOverride(a, model)}
               onEdit={() => navigate(`/agents/${a.id}/edit`)}
-              onDelete={() => deleteAgent(a)}
+              onArchive={() => archiveAgent(a)}
+              onRestore={() => restoreAgent(a)}
             />
           ))}
         </div>
@@ -148,12 +192,16 @@ export function AgentLibrary() {
 type CardProps = {
   agent: Agent;
   busy: boolean;
+  archived: boolean;
   onSetModel: (model: string | null) => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
 };
 
-function AgentCard({ agent, busy, onSetModel, onEdit, onDelete }: CardProps) {
+function AgentCard({
+  agent, busy, archived, onSetModel, onEdit, onArchive, onRestore,
+}: CardProps) {
   const current = agent.modelOverride ?? DEFAULT_MODEL;
   const isOverridden = !!agent.modelOverride;
   const isReasoner = current === REASONER;
@@ -233,44 +281,55 @@ function AgentCard({ agent, busy, onSetModel, onEdit, onDelete }: CardProps) {
           <span className="t-mono">{current}</span>
         </Pill>
         {isOverridden && <span className="t-tiny muted">(override)</span>}
+        {archived && <Pill tone="red">archived</Pill>}
         <div className="grow" />
 
-        <div className="row gap-2">
-          <button
-            className={`chip ${isChat && !isOverridden ? 'chip-on' : ''}`}
-            style={{ cursor: busy ? 'wait' : 'pointer' }}
-            disabled={busy || (isChat && !isOverridden)}
-            onClick={() => onSetModel(null)}
-            title="Use the workspace default chat model"
-          >
-            Default chat
-          </button>
-          <button
-            className={`chip ${isOverridden && isChat ? 'chip-on' : ''}`}
-            style={{ cursor: busy ? 'wait' : 'pointer' }}
-            disabled={busy || (isOverridden && isChat)}
-            onClick={() => onSetModel(DEFAULT_MODEL)}
-            title="Pin to deepseek-chat explicitly"
-          >
-            <span className="t-mono">chat</span>
-          </button>
-          <button
-            className={`chip ${isReasoner ? 'chip-on' : ''}`}
-            style={{ cursor: busy ? 'wait' : 'pointer' }}
-            disabled={busy || isReasoner}
-            onClick={() => onSetModel(REASONER)}
-            title="Route to deepseek-reasoner — slower, more rigorous"
-          >
-            <span className="t-mono">reasoner</span>
-          </button>
-        </div>
+        {!archived && (
+          <div className="row gap-2">
+            <button
+              className={`chip ${isChat && !isOverridden ? 'chip-on' : ''}`}
+              style={{ cursor: busy ? 'wait' : 'pointer' }}
+              disabled={busy || (isChat && !isOverridden)}
+              onClick={() => onSetModel(null)}
+              title="Use the workspace default chat model"
+            >
+              Default chat
+            </button>
+            <button
+              className={`chip ${isOverridden && isChat ? 'chip-on' : ''}`}
+              style={{ cursor: busy ? 'wait' : 'pointer' }}
+              disabled={busy || (isOverridden && isChat)}
+              onClick={() => onSetModel(DEFAULT_MODEL)}
+              title="Pin to deepseek-chat explicitly"
+            >
+              <span className="t-mono">chat</span>
+            </button>
+            <button
+              className={`chip ${isReasoner ? 'chip-on' : ''}`}
+              style={{ cursor: busy ? 'wait' : 'pointer' }}
+              disabled={busy || isReasoner}
+              onClick={() => onSetModel(REASONER)}
+              title="Route to deepseek-reasoner — slower, more rigorous"
+            >
+              <span className="t-mono">reasoner</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="row gap-2" style={{ marginTop: 12, justifyContent: 'flex-end' }}>
-        <Btn size="sm" kind="ghost" icon={Pencil} onClick={onEdit}>Edit</Btn>
-        <Btn size="sm" kind="ghost" icon={Trash2} onClick={onDelete} disabled={busy}>
-          Delete
-        </Btn>
+        {archived ? (
+          <Btn size="sm" kind="accent" icon={Undo2} onClick={onRestore} disabled={busy}>
+            Restore
+          </Btn>
+        ) : (
+          <>
+            <Btn size="sm" kind="ghost" icon={Pencil} onClick={onEdit}>Edit</Btn>
+            <Btn size="sm" kind="ghost" icon={Trash2} onClick={onArchive} disabled={busy}>
+              Archive
+            </Btn>
+          </>
+        )}
       </div>
     </div>
   );
