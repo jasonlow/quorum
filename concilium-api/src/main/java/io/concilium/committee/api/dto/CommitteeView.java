@@ -24,6 +24,7 @@ public record CommitteeView(
     QaIntensity qaIntensity,
     String decisionRule,
     int maxRevisionRounds,
+    String knowledgeText,
     CommitteeStatus status,
     OffsetDateTime archivedAt,
     OffsetDateTime createdAt,
@@ -41,6 +42,7 @@ public record CommitteeView(
             c.getId(), c.getName(), c.getDescription(),
             c.getOrchestrationPattern(), c.getQaIntensity(),
             c.getDecisionRule(), c.getMaxRevisionRounds(),
+            c.getKnowledgeText(),
             c.getStatus(), c.getArchivedAt(), c.getCreatedAt(),
             members
         );

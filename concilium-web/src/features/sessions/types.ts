@@ -59,6 +59,8 @@ export type Agent = {
   systemPrompt?: string | null;
   modelOverride?: string | null;
   temperature?: number;
+  /** Always-prepended reference material edited in the agent editor. */
+  knowledgeText?: string | null;
 };
 
 export type BriefView = {
@@ -148,6 +150,8 @@ export type CommitteeView = {
   qaIntensity: QaIntensity;
   decisionRule: string;
   maxRevisionRounds: number;
+  /** Standing doctrine prepended to every agent prompt for this committee. */
+  knowledgeText?: string | null;
   status: CommitteeStatus;
   archivedAt?: string | null;
   createdAt: string;

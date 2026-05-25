@@ -20,6 +20,7 @@ export type AgentRequest = {
   systemPrompt: string;
   modelOverride?: string | null;
   temperature: number;
+  knowledgeText?: string | null;
 };
 
 export type AgentStatus = 'PUBLISHED' | 'ARCHIVED';
@@ -78,6 +79,7 @@ export type CommitteeRequest = {
   qaIntensity: QaIntensity;
   decisionRule: string;
   maxRevisionRounds?: number;
+  knowledgeText?: string | null;
   members: CommitteeMemberRequest[];
 };
 
@@ -134,5 +136,96 @@ export const sessionsApi = {
     http<DecideResponse>(`/api/v1/sessions/${id}/decide`, {
       method: 'POST',
       body,
+    }),
+
+  /** Per-agent expanded view (round history + CoS scores). */
+  agentDetails: (sessionId: string, agentId: string) =>
+    http<AgentDetailsView>(`/api/v1/sessions/${sessionId}/agents/${agentId}/details`),
+
+  /** Assembled user prompt for one agent — debug view. Returns text/plain. */
+  agentPrompt: async (sessionId: string, agentId: string): Promise<string> => {
+    const res = await fetch(`${API_BASE_FOR_PROMPT}/api/v1/sessions/${sessionId}/agents/${agentId}/prompt`);
+    if (!res.ok) {
+      let msg = `${res.status} ${res.statusText}`;
+      try { const t = await res.text(); if (t) msg += ` — ${t}`; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+    return await res.text();
+  },
+};
+
+export type AgentDetailsView = {
+  sessionId: string;
+  agentId: string;
+  agentName: string;
+  rounds: Array<{
+    roundNo: number;
+    draft?: {
+      text: string;
+      modelUsed?: string;
+      promptTokens?: number;
+      completionTokens?: number;
+      latencyMs?: number;
+      createdAt: string;
+    };
+    review?: {
+      verdict: 'PASSED' | 'PASSED_WITH_NOTE' | 'REVISION_REQUESTED' | 'FAILED';
+      scores: {
+        specificity: number;
+        completeness: number;
+        evidence: number;
+        boundaries: number;
+        ideology: number;
+      };
+      challenge?: string;
+      createdAt: string;
+    };
+  }>;
+};
+
+const API_BASE_FOR_PROMPT = (import.meta as any).env?.VITE_API_BASE ?? '';
+
+// ───────────────────────────────────────────────────────────────
+// Supporting documents (uploaded against a session while it's still
+// in CONVENED phase, before the orchestrator runs).
+// ───────────────────────────────────────────────────────────────
+
+export type SessionDocumentView = {
+  id: string;
+  sessionId: string;
+  filename: string;
+  contentType: string;
+  byteSize: number;
+  extractedChars: number;
+  previewSnippet: string;
+  sha256: string;
+  createdAt: string;
+};
+
+const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? '';
+
+export const documentsApi = {
+  list: (sessionId: string) =>
+    http<SessionDocumentView[]>(`/api/v1/sessions/${sessionId}/documents`),
+
+  /** Multipart upload — bypasses the JSON http() helper. */
+  async upload(sessionId: string, file: File): Promise<SessionDocumentView> {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    const res = await fetch(`${API_BASE}/api/v1/sessions/${sessionId}/documents`, {
+      method: 'POST',
+      body: fd,
+    });
+    if (!res.ok) {
+      let msg = `${res.status} ${res.statusText}`;
+      try { const t = await res.text(); if (t) msg += ` — ${t}`; } catch { /* ignore */ }
+      throw new Error(msg);
+    }
+    return (await res.json()) as SessionDocumentView;
+  },
+
+  remove: (sessionId: string, documentId: string) =>
+    http<void>(`/api/v1/sessions/${sessionId}/documents/${documentId}`, {
+      method: 'DELETE',
     }),
 };

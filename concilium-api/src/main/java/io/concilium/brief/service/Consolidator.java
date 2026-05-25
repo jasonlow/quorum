@@ -9,11 +9,14 @@ import io.concilium.brief.store.BriefRepository;
 import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.session.cos.CosReview;
 import io.concilium.session.cos.CosReviewRepository;
+import io.concilium.session.documents.DocumentContextFormatter;
 import io.concilium.session.domain.AgentRunState;
 import io.concilium.session.domain.Session;
 import io.concilium.session.domain.SessionAgentState;
+import io.concilium.session.domain.SessionDocument;
 import io.concilium.session.llm.PromptTemplates;
 import io.concilium.session.store.SessionAgentStateRepository;
+import io.concilium.session.store.SessionDocumentRepository;
 import io.concilium.session.store.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +53,7 @@ public class Consolidator {
     private final AgentProfileRepository agents;
     private final CommitteeRepository committees;
     private final CosReviewRepository cosReviews;
+    private final SessionDocumentRepository sessionDocuments;
     private final BriefRepository briefs;
     private final PromptTemplates prompts;
     private final ChatModel chatModel;
@@ -97,14 +101,23 @@ public class Consolidator {
             return persistFallback(session, Map.of("error", "no usable drafts"));
         }
 
-        String committeeName = committees.findById(session.getCommitteeId())
-            .map(c -> c.getName())
-            .orElse("the committee");
+        var committee = committees.findById(session.getCommitteeId()).orElse(null);
+        String committeeName = committee == null ? "the committee" : committee.getName();
+        String committeeKnowledgeMd = committee == null ? null : committee.getKnowledgeText();
+
+        List<SessionDocument> docs = sessionDocuments.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        String supportingDocsMd = DocumentContextFormatter.render(docs);
 
         Map<String, Object> vars = new HashMap<>();
         vars.put("committeeName", committeeName);
         vars.put("topic", session.getTopic());
         vars.put("contextMd", session.getContextMd());
+        if (committeeKnowledgeMd != null && !committeeKnowledgeMd.isBlank()) {
+            vars.put("committeeKnowledgeMd", committeeKnowledgeMd);
+        }
+        if (supportingDocsMd != null && !supportingDocsMd.isBlank()) {
+            vars.put("supportingDocsMd", supportingDocsMd);
+        }
         vars.put("agents", agentEntries);
         String user = prompts.render("consolidation", vars);
 

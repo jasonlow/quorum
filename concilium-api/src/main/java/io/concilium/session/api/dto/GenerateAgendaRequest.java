@@ -15,5 +15,5 @@ import java.util.UUID;
  */
 public record GenerateAgendaRequest(
     UUID committeeId,
-    @NotBlank @Size(max = 2000) String description
+    @NotBlank @Size(max = 8000) String description
 ) {}

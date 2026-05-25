@@ -4,6 +4,12 @@ a one-page consolidated brief for the chair — surfacing consensus,
 making disagreements visible, and giving a single recommendation that
 the chair can accept, adjust, or reject.
 
+{{#if committeeKnowledgeMd}}
+## Committee doctrine
+
+{{committeeKnowledgeMd}}
+
+{{/if}}
 ## Topic
 
 {{topic}}
@@ -12,6 +18,12 @@ the chair can accept, adjust, or reject.
 ## Context the committee received
 
 {{contextMd}}
+
+{{/if}}
+{{#if supportingDocsMd}}
+## Supporting documents the committee received
+
+{{supportingDocsMd}}
 
 {{/if}}
 ## Agent submissions

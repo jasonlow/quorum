@@ -21,6 +21,7 @@
 		<springdoc.version>2.6.0</springdoc.version>
 		<handlebars.version>4.4.0</handlebars.version>
 		<wiremock.version>3.9.1</wiremock.version>
+		<tika.version>3.2.0</tika.version>
 	</properties>
 
 	<dependencyManagement>
@@ -93,6 +94,20 @@
 			<groupId>com.github.jknack</groupId>
 			<artifactId>handlebars</artifactId>
 			<version>${handlebars.version}</version>
+		</dependency>
+
+		<!-- Document text extraction (PDF / DOCX / XLSX / CSV / TXT) for the
+		     supporting-documents feature on the Convene page. tika-core +
+		     standard-package together cover the formats listed above. -->
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-core</artifactId>
+			<version>${tika.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tika</groupId>
+			<artifactId>tika-parsers-standard-package</artifactId>
+			<version>${tika.version}</version>
 		</dependency>
 
 		<!-- Local dev convenience: docker-compose lifecycle -->

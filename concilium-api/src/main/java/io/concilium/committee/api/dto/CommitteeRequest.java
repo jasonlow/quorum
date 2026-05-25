@@ -24,6 +24,7 @@ public record CommitteeRequest(
     @NotNull QaIntensity qaIntensity,
     @NotBlank @Size(max = 30) String decisionRule,
     @Min(0) @Max(5) Integer maxRevisionRounds,
+    @Size(max = 40000) String knowledgeText,
     @NotNull @Size(min = 1, max = 20) List<@Valid MemberRequest> members
 ) {
     /**

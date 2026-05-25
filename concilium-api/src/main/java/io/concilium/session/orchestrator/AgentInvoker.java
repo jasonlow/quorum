@@ -34,7 +34,8 @@ public class AgentInvoker {
     /** Blocking, non-streaming. Used by the W1 single-agent dev path. */
     public AgentDraft invoke(AgentProfile agent, String committeeName,
                              String topic, String contextMd) {
-        return invokeInternal(agent, committeeName, topic, contextMd, null, null, null);
+        return invokeInternal(agent, committeeName, topic, contextMd,
+            null, null, null, null, null, null);
     }
 
     /**
@@ -42,27 +43,43 @@ public class AgentInvoker {
      * {@code onToken} for each chunk that arrives from the LLM.
      * The callback is invoked on the virtual thread that calls this method —
      * it should be cheap (e.g. push to SSE).
+     *
+     * <p>{@code committeeKnowledgeMd} and {@code agentKnowledgeMd} (both
+     * may be null) are the standing-doctrine blocks edited in the
+     * committee/agent editor — they're always-on context that sits above
+     * the topic. {@code supportingDocsMd} is the per-session attached
+     * documents block (see {@link io.concilium.session.documents.DocumentContextFormatter}).
      */
     public AgentDraft invokeStreaming(AgentProfile agent, String committeeName,
                                       String topic, String contextMd,
+                                      String committeeKnowledgeMd, String agentKnowledgeMd,
+                                      String supportingDocsMd,
                                       Consumer<String> onToken) {
-        return invokeInternal(agent, committeeName, topic, contextMd, null, null, onToken);
+        return invokeInternal(agent, committeeName, topic, contextMd,
+            committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd,
+            null, null, onToken);
     }
 
     /** Re-invoke after a CoS revision request. Non-streaming. */
     public AgentDraft invokeRevision(AgentProfile agent, String committeeName,
                                      String topic, String contextMd,
+                                     String committeeKnowledgeMd, String agentKnowledgeMd,
+                                     String supportingDocsMd,
                                      String previousDraft, String revisionInstruction) {
         return invokeInternal(agent, committeeName, topic, contextMd,
+            committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd,
             previousDraft, revisionInstruction, null);
     }
 
     /** Re-invoke after a CoS revision request, with token streaming. */
     public AgentDraft invokeRevisionStreaming(AgentProfile agent, String committeeName,
                                               String topic, String contextMd,
+                                              String committeeKnowledgeMd, String agentKnowledgeMd,
+                                              String supportingDocsMd,
                                               String previousDraft, String revisionInstruction,
                                               Consumer<String> onToken) {
         return invokeInternal(agent, committeeName, topic, contextMd,
+            committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd,
             previousDraft, revisionInstruction, onToken);
     }
 
@@ -70,6 +87,8 @@ public class AgentInvoker {
 
     private AgentDraft invokeInternal(AgentProfile agent, String committeeName,
                                       String topic, String contextMd,
+                                      String committeeKnowledgeMd, String agentKnowledgeMd,
+                                      String supportingDocsMd,
                                       String previousDraft, String revisionInstruction,
                                       Consumer<String> onToken) {
         var client = routing.clientFor(agent);
@@ -78,6 +97,15 @@ public class AgentInvoker {
         vars.put("committeeName", committeeName);
         vars.put("topic", topic);
         vars.put("contextMd", contextMd);
+        if (committeeKnowledgeMd != null && !committeeKnowledgeMd.isBlank()) {
+            vars.put("committeeKnowledgeMd", committeeKnowledgeMd);
+        }
+        if (agentKnowledgeMd != null && !agentKnowledgeMd.isBlank()) {
+            vars.put("agentKnowledgeMd", agentKnowledgeMd);
+        }
+        if (supportingDocsMd != null && !supportingDocsMd.isBlank()) {
+            vars.put("supportingDocsMd", supportingDocsMd);
+        }
         if (revisionInstruction != null && !revisionInstruction.isBlank()) {
             vars.put("revisionInstruction", revisionInstruction);
             vars.put("previousDraft", previousDraft == null ? "" : previousDraft);

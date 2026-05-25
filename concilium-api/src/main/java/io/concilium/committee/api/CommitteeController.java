@@ -72,6 +72,7 @@ public class CommitteeController {
             .qaIntensity(req.qaIntensity())
             .decisionRule(req.decisionRule())
             .maxRevisionRounds(req.maxRevisionRounds() == null ? 1 : req.maxRevisionRounds())
+            .knowledgeText(normaliseKnowledge(req.knowledgeText()))
             .build());
 
         saveMembers(saved.getId(), req.members());
@@ -100,6 +101,7 @@ public class CommitteeController {
         existing.setQaIntensity(req.qaIntensity());
         existing.setDecisionRule(req.decisionRule());
         existing.setMaxRevisionRounds(req.maxRevisionRounds() == null ? 1 : req.maxRevisionRounds());
+        existing.setKnowledgeText(normaliseKnowledge(req.knowledgeText()));
         Committee saved = committees.save(existing);
 
         // Wipe + replace the membership list — committees with active sessions
@@ -153,6 +155,10 @@ public class CommitteeController {
     }
 
     // ------------------------------------------------------------------
+
+    private static String normaliseKnowledge(String s) {
+        return (s == null || s.isBlank()) ? null : s;
+    }
 
     private void validateAllAgentsExist(CommitteeRequest req) {
         List<UUID> ids = req.members().stream().map(CommitteeRequest.MemberRequest::agentId).toList();

@@ -208,6 +208,8 @@ public class AgentController {
         String mo = req.modelOverride();
         target.setModelOverride(mo == null || mo.isBlank() ? null : mo);
         target.setTemperature(req.temperature() == null ? new BigDecimal("0.70") : req.temperature());
+        String kt = req.knowledgeText();
+        target.setKnowledgeText(kt == null || kt.isBlank() ? null : kt);
         return target;
     }
 }

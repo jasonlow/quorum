@@ -1,5 +1,17 @@
 You are participating in a deliberation of the **{{committeeName}}**.
 
+{{#if committeeKnowledgeMd}}
+## Committee doctrine
+
+{{committeeKnowledgeMd}}
+{{/if}}
+
+{{#if agentKnowledgeMd}}
+## Your reference library
+
+{{agentKnowledgeMd}}
+{{/if}}
+
 ## Topic
 
 {{topic}}
@@ -8,6 +20,12 @@ You are participating in a deliberation of the **{{committeeName}}**.
 ## Context
 
 {{contextMd}}
+{{/if}}
+
+{{#if supportingDocsMd}}
+## Supporting documents
+
+{{supportingDocsMd}}
 {{/if}}
 
 {{#if revisionInstruction}}

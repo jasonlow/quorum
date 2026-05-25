@@ -27,5 +27,6 @@ public record AgentRequest(
     @Size(max = 160) String speakingStyle,
     @NotBlank @Size(max = 16000) String systemPrompt,
     @Size(max = 80) String modelOverride,
-    @DecimalMin("0.0") @DecimalMax("2.0") BigDecimal temperature
+    @DecimalMin("0.0") @DecimalMax("2.0") BigDecimal temperature,
+    @Size(max = 40000) String knowledgeText
 ) {}

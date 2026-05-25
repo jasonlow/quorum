@@ -12,6 +12,14 @@ import type {
  * backend pushes via SSE, plus per-agent telemetry from agent.draft.done
  * and CoS verdict / challenge surfaces.
  */
+export type CosRubricScores = {
+  specificity?: number;
+  completeness?: number;
+  evidence?: number;
+  boundaries?: number;
+  ideology?: number;
+};
+
 export type AgentTile = {
   agentId: string;
   agentName: string;
@@ -23,6 +31,7 @@ export type AgentTile = {
   latencyMs?: number;
   cosVerdict?: string;
   cosChallenge?: string;
+  cosScores?: CosRubricScores;
   failedReason?: string;
   /** Live text accumulated from agent.draft.token events. */
   streamingText?: string;
@@ -172,6 +181,7 @@ export const useSessionStore = create<State>((set) => ({
           ...a,
           cosVerdict: kind,
           cosChallenge: e.challenge ?? e.note ?? a.cosChallenge,
+          cosScores: e.scores ?? a.cosScores,
         })),
       },
     };

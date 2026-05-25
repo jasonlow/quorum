@@ -64,7 +64,8 @@ public class AgentGenerationService {
                 parsed.ideology(), parsed.biases(), parsed.boundaries(),
                 parsed.speakingStyle(), parsed.systemPrompt(),
                 null,                       // ← modelOverride forced null
-                parsed.temperature()
+                parsed.temperature(),
+                null                        // ← knowledgeText: chair fills this in manually
             );
             log.info("Generated agent draft: name='{}' ideology='{}' biases={} skills={}",
                 result.name(), result.ideology(),

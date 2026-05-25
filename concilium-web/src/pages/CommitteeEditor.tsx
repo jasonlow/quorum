@@ -16,6 +16,7 @@ const EMPTY: CommitteeRequest = {
   qaIntensity: 'NONE',
   decisionRule: 'CHAIR_DECIDES',
   maxRevisionRounds: 1,
+  knowledgeText: null,
   members: [],
 };
 
@@ -27,6 +28,7 @@ function fromView(c: CommitteeView): CommitteeRequest {
     qaIntensity: c.qaIntensity,
     decisionRule: c.decisionRule,
     maxRevisionRounds: c.maxRevisionRounds,
+    knowledgeText: c.knowledgeText ?? null,
     members: c.members.map(m => ({ agentId: m.agentId, weight: m.weight })),
   };
 }
@@ -172,6 +174,28 @@ export function CommitteeEditor() {
             placeholder="What this committee deliberates on"
           />
         </Field>
+
+        <div>
+          <label className="t-tiny" style={{ display: 'block', marginBottom: 6 }}>
+            Committee doctrine
+          </label>
+          <textarea
+            className="input" rows={10} maxLength={40000}
+            value={form.knowledgeText ?? ''}
+            onChange={(e) => patch('knowledgeText', e.target.value)}
+            placeholder={`# Firm risk appetite\n- Max unsecured exposure to any single counterparty: 5% of NAV\n- Concentration cap on top-3 custodians: 60% combined\n\n# Decision precedents\n...`}
+            style={{ fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.55 }}
+          />
+          <div className="t-tiny" style={{
+            marginTop: 4,
+            color: (form.knowledgeText?.length ?? 0) > 30000 ? 'var(--amber)' : 'var(--ink-3)',
+          }}>
+            ~{form.knowledgeText?.length ?? 0} chars
+            {(form.knowledgeText?.length ?? 0) > 30000 && ' · approaching 40 KB cap'}
+            {' · '}
+            Standing rules of the road every member of this committee operates under.
+          </div>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           <Field label="Orchestration pattern">

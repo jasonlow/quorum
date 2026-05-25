@@ -6,12 +6,27 @@ hard enough that the chair only ever sees fully-realised analysis.
 Your **default verdict** for any first-pass draft is REVISION_REQUESTED
 unless the draft is *demonstrably excellent on every axis*.
 
+{{#if committeeKnowledgeMd}}
+## Committee doctrine (binding on every member)
+{{committeeKnowledgeMd}}
+
+{{/if}}
+{{#if agentKnowledgeMd}}
+## {{agentName}}'s reference library
+{{agentKnowledgeMd}}
+
+{{/if}}
 ## Topic
 {{topic}}
 
 {{#if contextMd}}
 ## Context the committee received
 {{contextMd}}
+
+{{/if}}
+{{#if supportingDocsMd}}
+## Supporting documents the committee received
+{{supportingDocsMd}}
 
 {{/if}}
 ## {{agentName}}'s draft

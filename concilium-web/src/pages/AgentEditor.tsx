@@ -17,6 +17,7 @@ const EMPTY_AGENT: AgentRequest = {
   systemPrompt: 'You are a senior … (write 200–400 words. First person posture, scoring conventions, boundaries, style.)',
   modelOverride: null,
   temperature: 0.7,
+  knowledgeText: null,
 };
 
 // Whitelist of model strings the form's dropdown can represent. Anything
@@ -57,6 +58,7 @@ function fromAgent(a: Agent): AgentRequest {
     systemPrompt: a.systemPrompt ?? '',
     modelOverride: normaliseModelOverride(a.modelOverride),
     temperature: typeof a.temperature === 'number' ? a.temperature : 0.7,
+    knowledgeText: a.knowledgeText ?? null,
   };
 }
 

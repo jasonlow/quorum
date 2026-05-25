@@ -49,6 +49,10 @@ public class Committee {
     @Builder.Default
     private int maxRevisionRounds = 1;
 
+    /** Standing doctrine prepended to every agent's prompt for this committee. */
+    @Column(name = "knowledge_text", columnDefinition = "TEXT")
+    private String knowledgeText;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

@@ -9,11 +9,14 @@ import io.concilium.committee.domain.CommitteeMember;
 import io.concilium.committee.store.CommitteeMemberRepository;
 import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.decision.domain.Decision;
+import io.concilium.platform.audit.Hashing;
 import io.concilium.session.cos.CosReview;
 import io.concilium.session.cos.CosReviewRepository;
 import io.concilium.session.domain.Session;
 import io.concilium.session.domain.SessionAgentState;
+import io.concilium.session.domain.SessionDocument;
 import io.concilium.session.store.SessionAgentStateRepository;
+import io.concilium.session.store.SessionDocumentRepository;
 import io.concilium.session.store.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -41,6 +44,7 @@ public class CanonicalPayloadBuilder {
     private final CommitteeMemberRepository members;
     private final AgentProfileRepository agents;
     private final CosReviewRepository cosReviews;
+    private final SessionDocumentRepository sessionDocuments;
     private final BriefRepository briefs;
 
     public Map<String, Object> build(UUID sessionId, Decision decision) {
@@ -65,6 +69,13 @@ public class CanonicalPayloadBuilder {
         sessionMap.put("decisionRule", committee.getDecisionRule());
         sessionMap.put("topic", session.getTopic());
         sessionMap.put("contextMd", session.getContextMd());
+        // Committee doctrine — recorded as length + SHA so the chain captures
+        // the doctrine that was in force at session time, without bloating
+        // the audit payload with up to 40 KB of inline text.
+        String committeeKnowledge = committee.getKnowledgeText();
+        sessionMap.put("committeeKnowledgeChars",
+            committeeKnowledge == null ? 0 : committeeKnowledge.length());
+        sessionMap.put("committeeKnowledgeSha256", Hashing.sha256Hex(committeeKnowledge));
         sessionMap.put("phase", session.getPhase().name());
         sessionMap.put("startedAt", session.getStartedAt());
         root.put("session", sessionMap);
@@ -83,11 +94,34 @@ public class CanonicalPayloadBuilder {
             e.put("speakingOrder", m.getSpeakingOrder());
             e.put("ideology", a.getIdeology());
             e.put("modelOverride", a.getModelOverride());
+            // Agent's standing reference library — length + SHA only.
+            String agentKnowledge = a.getKnowledgeText();
+            e.put("knowledgeChars", agentKnowledge == null ? 0 : agentKnowledge.length());
+            e.put("knowledgeSha256", Hashing.sha256Hex(agentKnowledge));
             e.put("finalState", st == null ? null : st.getState().name());
             e.put("draft", st == null ? null : st.getDraftText());
             agentEntries.add(e);
         }
         root.put("agents", agentEntries);
+
+        // --- supporting documents (filename + size + SHA-256 of extracted
+        //     text). Raw extracted text is omitted from the audit payload —
+        //     it can be re-derived from the database if dispute arises, and
+        //     including 200 KB per session would bloat the chain.
+        List<SessionDocument> docs = sessionDocuments.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        List<Map<String, Object>> docEntries = new ArrayList<>();
+        for (SessionDocument d : docs) {
+            Map<String, Object> e = new LinkedHashMap<>();
+            e.put("id", d.getId().toString());
+            e.put("filename", d.getFilename());
+            e.put("contentType", d.getContentType());
+            e.put("byteSize", d.getByteSize());
+            e.put("extractedChars", d.getExtractedText().length());
+            e.put("sha256", d.getSha256());
+            e.put("createdAt", d.getCreatedAt());
+            docEntries.add(e);
+        }
+        root.put("supportingDocuments", docEntries);
 
         // --- CoS reviews (every round, every agent)
         List<CosReview> reviews = cosReviews.findBySessionIdOrderByCreatedAtAsc(sessionId);

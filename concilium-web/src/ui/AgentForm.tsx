@@ -230,6 +230,27 @@ export function AgentForm({
         </div>
       </Field>
 
+      {/* ─── Knowledge base (wiki) ─────────────────────────── */}
+      <Field
+        label="Knowledge base"
+        hint='Reference material this agent draws on across every session. Frameworks, scoring schemes, exemplars. Stays the same across sessions — the agenda goes on the Convene page instead. Soft cap 40 KB.'
+      >
+        <textarea
+          className="input" rows={12} maxLength={40000}
+          value={form.knowledgeText ?? ''}
+          onChange={(e) => patch('knowledgeText', e.target.value)}
+          placeholder={`# Risk frameworks\n- COSO ERM\n- ISO 31000\n\n# Internal scoring rubric\n...`}
+          style={{ fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.55 }}
+        />
+        <div className="t-tiny" style={{
+          marginTop: 4,
+          color: (form.knowledgeText?.length ?? 0) > 30000 ? 'var(--amber)' : 'var(--ink-3)',
+        }}>
+          ~{form.knowledgeText?.length ?? 0} chars
+          {(form.knowledgeText?.length ?? 0) > 30000 && ' · approaching 40 KB cap'}
+        </div>
+      </Field>
+
       {/* ─── Actions ───────────────────────────────────────── */}
       <div className="row gap-3">
         <Btn type="button" onClick={onCancel}>Cancel</Btn>

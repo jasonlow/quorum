@@ -60,12 +60,23 @@ public class ChiefOfStaffService {
 
     /** Run one review pass. Always returns — never throws on LLM error. */
     public CosReviewResult review(AgentProfile agent, String committeeName,
-                                  String topic, String contextMd, String draft) {
+                                  String topic, String contextMd,
+                                  String committeeKnowledgeMd, String agentKnowledgeMd,
+                                  String supportingDocsMd, String draft) {
         Map<String, Object> vars = new HashMap<>();
         vars.put("committeeName", committeeName);
         vars.put("agentName", agent.getName());
         vars.put("topic", topic);
         vars.put("contextMd", contextMd);
+        if (committeeKnowledgeMd != null && !committeeKnowledgeMd.isBlank()) {
+            vars.put("committeeKnowledgeMd", committeeKnowledgeMd);
+        }
+        if (agentKnowledgeMd != null && !agentKnowledgeMd.isBlank()) {
+            vars.put("agentKnowledgeMd", agentKnowledgeMd);
+        }
+        if (supportingDocsMd != null && !supportingDocsMd.isBlank()) {
+            vars.put("supportingDocsMd", supportingDocsMd);
+        }
         vars.put("draft", draft);
 
         String user = prompts.render("cos-review", vars);

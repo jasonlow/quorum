@@ -70,6 +70,10 @@ public class AgentProfile {
     @Builder.Default
     private BigDecimal temperature = new BigDecimal("0.70");
 
+    /** Always-prepended reference material — frameworks, doctrine, exemplars. */
+    @Column(name = "knowledge_text", columnDefinition = "TEXT")
+    private String knowledgeText;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

@@ -4,6 +4,7 @@ import io.concilium.agent.domain.AgentProfile;
 import io.concilium.agent.store.AgentProfileRepository;
 import io.concilium.committee.domain.Committee;
 import io.concilium.committee.domain.CommitteeMember;
+import io.concilium.committee.domain.QaIntensity;
 import io.concilium.committee.store.CommitteeMemberRepository;
 import io.concilium.committee.store.CommitteeRepository;
 import io.concilium.platform.telemetry.CorrelationContext;
@@ -14,6 +15,11 @@ import io.concilium.session.cos.CosReview;
 import io.concilium.session.cos.CosReviewRepository;
 import io.concilium.session.cos.CosReviewResult;
 import io.concilium.session.cos.CosVerdict;
+import io.concilium.session.documents.DocumentContextFormatter;
+import io.concilium.session.domain.SessionAgentDraft;
+import io.concilium.session.domain.SessionDocument;
+import io.concilium.session.store.SessionAgentDraftRepository;
+import io.concilium.session.store.SessionDocumentRepository;
 import io.concilium.session.domain.AgentRunState;
 import io.concilium.session.domain.Phase;
 import io.concilium.session.domain.Session;
@@ -65,6 +71,8 @@ public class RoundRobinOrchestrator {
     private final CommitteeRepository committees;
     private final CommitteeMemberRepository members;
     private final AgentProfileRepository agents;
+    private final SessionDocumentRepository sessionDocuments;
+    private final SessionAgentDraftRepository sessionAgentDrafts;
     private final AgentInvoker invoker;
     private final ChiefOfStaffService cos;
     private final CosReviewRepository cosReviews;
@@ -152,85 +160,118 @@ public class RoundRobinOrchestrator {
         Session s = reload(sessionId);
         String topic = s.getTopic();
         String context = s.getContextMd();
-        int maxRevisions = committee.getMaxRevisionRounds();   // PoC: 1
+        List<SessionDocument> docs = sessionDocuments.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        String supportingDocsMd = DocumentContextFormatter.render(docs);
+        // Standing-doctrine wikis — read once at session start; if the chair
+        // edits them mid-session, the new value won't apply until next session.
+        String committeeKnowledgeMd = committee.getKnowledgeText();
+        String agentKnowledgeMd = agent.getKnowledgeText();
+        QaIntensity qa = committee.getQaIntensity();
+        // SINGLE caps revisions at 1 regardless of committee setting; DEEP
+        // honours the full maxRevisionRounds budget; NONE skips CoS entirely
+        // below so the budget is moot.
+        int revisionBudget = switch (qa) {
+            case NONE   -> 0;
+            case SINGLE -> Math.min(1, committee.getMaxRevisionRounds());
+            case DEEP   -> committee.getMaxRevisionRounds();
+        };
 
-        // ---- THINKING ----
+        // ---- THINKING -> initial DRAFT ----
         updateState(sessionId, agentId, AgentRunState.THINKING, 25);
         emitAgentState(sessionId, agent, AgentRunState.THINKING, 25);
 
         AgentDraft draft;
         try {
             draft = invoker.invokeStreaming(agent, committee.getName(), topic, context,
+                committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd,
                 tokenStreamer(sessionId, agent));
         } catch (RuntimeException e) {
             failAgent(sessionId, agent, e.getMessage());
             return;
         }
         persistDraft(sessionId, agentId, AgentRunState.SUBMITTED, draft.text());
+        persistDraftRow(sessionId, agentId, 1, draft);
         emitAgentState(sessionId, agent, AgentRunState.SUBMITTED, 100);
         sse.send(sessionId, SseEventType.AGENT_DRAFT_DONE,
             new AgentDraftDoneEvent(sessionId, agentId, agent.getName(),
                 draft.modelUsed(), draft.promptTokens(), draft.completionTokens(),
                 draft.latency().toMillis(), Instant.now()));
 
-        // ---- CoS GATE (Round 1) ----
-        CosReviewResult review = cos.review(agent, committee.getName(), topic, context, draft.text());
-        persistCosReview(sessionId, agentId, 1, review);
+        // ---- QA = NONE: no CoS gate, ship the first draft ----
+        if (qa == QaIntensity.NONE) {
+            updateState(sessionId, agentId, AgentRunState.PASSED, 100);
+            emitAgentState(sessionId, agent, AgentRunState.PASSED, 100);
+            return;
+        }
 
-        if (review.verdict() == CosVerdict.PASSED) {
-            terminate(sessionId, agent, AgentRunState.PASSED, review);
-            return;
-        }
-        if (review.verdict() == CosVerdict.PASSED_WITH_NOTE) {
-            terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
-            return;
-        }
-        // REVISION_REQUESTED — go through one revision round (max 1 per PoC)
-        sse.send(sessionId, SseEventType.COS_REVISION_REQ,
-            Map.of(
+        // ---- CoS LOOP (SINGLE: 1 review + up to 1 revision;
+        //                 DEEP: review until pass or budget exhausted) ----
+        AgentDraft currentDraft = draft;
+        int round = 1;
+        int revisionsUsed = 0;
+
+        while (true) {
+            CosReviewResult review = cos.review(agent, committee.getName(), topic, context,
+                committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd, currentDraft.text());
+            persistCosReview(sessionId, agentId, round, review);
+
+            switch (review.verdict()) {
+                case PASSED -> {
+                    terminate(sessionId, agent, AgentRunState.PASSED, review);
+                    return;
+                }
+                case PASSED_WITH_NOTE -> {
+                    terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
+                    return;
+                }
+                case FAILED -> {
+                    terminate(sessionId, agent, AgentRunState.FAILED, review);
+                    return;
+                }
+                case REVISION_REQUESTED -> {
+                    if (revisionsUsed >= revisionBudget) {
+                        // Out of rounds — accept the latest draft with note
+                        terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
+                        return;
+                    }
+                    // fall through to revise
+                }
+            }
+
+            sse.send(sessionId, SseEventType.COS_REVISION_REQ, Map.of(
                 "sessionId", sessionId,
                 "agentId", agentId,
                 "agentName", agent.getName(),
                 "challenge", review.challenge() == null ? "" : review.challenge()
             ));
 
-        if (maxRevisions < 1) {
-            terminate(sessionId, agent, AgentRunState.PASSED_WITH_NOTE, review);
-            return;
+            updateState(sessionId, agentId, AgentRunState.REVISING, 60);
+            emitAgentState(sessionId, agent, AgentRunState.REVISING, 60);
+
+            AgentDraft revised;
+            try {
+                revised = invoker.invokeRevisionStreaming(agent, committee.getName(), topic, context,
+                    committeeKnowledgeMd, agentKnowledgeMd, supportingDocsMd,
+                    currentDraft.text(), review.challenge(),
+                    tokenStreamer(sessionId, agent));
+            } catch (RuntimeException e) {
+                failAgent(sessionId, agent, e.getMessage());
+                return;
+            }
+            persistDraft(sessionId, agentId, AgentRunState.SUBMITTED, revised.text());
+            // round_no for the revised draft is the upcoming CoS round (1-indexed
+            // and aligned with cos_reviews): round 2 = first revision, round 3 = second.
+            persistDraftRow(sessionId, agentId, round + 1, revised);
+            emitAgentState(sessionId, agent, AgentRunState.SUBMITTED, 90);
+            sse.send(sessionId, SseEventType.AGENT_DRAFT_DONE,
+                new AgentDraftDoneEvent(sessionId, agentId, agent.getName(),
+                    revised.modelUsed(), revised.promptTokens(), revised.completionTokens(),
+                    revised.latency().toMillis(), Instant.now()));
+
+            currentDraft = revised;
+            revisionsUsed++;
+            round++;
         }
-
-        // ---- REVISING ----
-        updateState(sessionId, agentId, AgentRunState.REVISING, 60);
-        emitAgentState(sessionId, agent, AgentRunState.REVISING, 60);
-
-        AgentDraft revised;
-        try {
-            revised = invoker.invokeRevisionStreaming(agent, committee.getName(), topic, context,
-                draft.text(), review.challenge(),
-                tokenStreamer(sessionId, agent));
-        } catch (RuntimeException e) {
-            failAgent(sessionId, agent, e.getMessage());
-            return;
-        }
-        persistDraft(sessionId, agentId, AgentRunState.SUBMITTED, revised.text());
-        emitAgentState(sessionId, agent, AgentRunState.SUBMITTED, 90);
-        sse.send(sessionId, SseEventType.AGENT_DRAFT_DONE,
-            new AgentDraftDoneEvent(sessionId, agentId, agent.getName(),
-                revised.modelUsed(), revised.promptTokens(), revised.completionTokens(),
-                revised.latency().toMillis(), Instant.now()));
-
-        // ---- CoS GATE (Round 2 — final) ----
-        CosReviewResult round2 = cos.review(agent, committee.getName(), topic, context, revised.text());
-        persistCosReview(sessionId, agentId, 2, round2);
-
-        // Even if still REVISION_REQUESTED, we're out of rounds → PASSED_WITH_NOTE
-        AgentRunState finalState = switch (round2.verdict()) {
-            case PASSED              -> AgentRunState.PASSED;
-            case PASSED_WITH_NOTE,
-                 REVISION_REQUESTED  -> AgentRunState.PASSED_WITH_NOTE;
-            case FAILED              -> AgentRunState.FAILED;
-        };
-        terminate(sessionId, agent, finalState, round2);
     }
 
     private void terminate(UUID sessionId, AgentProfile agent,
@@ -269,6 +310,19 @@ public class RoundRobinOrchestrator {
 
     private void persistDraft(UUID sessionId, UUID agentId, AgentRunState state, String draft) {
         updateStateWithDraft(sessionId, agentId, state, 100, draft);
+    }
+
+    private void persistDraftRow(UUID sessionId, UUID agentId, int roundNo, AgentDraft d) {
+        sessionAgentDrafts.save(SessionAgentDraft.builder()
+            .sessionId(sessionId)
+            .agentId(agentId)
+            .roundNo(roundNo)
+            .draftText(d.text())
+            .modelUsed(d.modelUsed())
+            .promptTokens(d.promptTokens())
+            .completionTokens(d.completionTokens())
+            .latencyMs(d.latency() == null ? null : (int) d.latency().toMillis())
+            .build());
     }
 
     private void persistCosReview(UUID sessionId, UUID agentId, int round, CosReviewResult r) {

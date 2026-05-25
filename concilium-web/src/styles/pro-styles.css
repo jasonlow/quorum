@@ -58,6 +58,19 @@ body.theme-dusk {
   --accent:    #e08a4c;
   --accent-2:  #b86a30;
   --accent-bg: #3a2a1c;
+
+  /* Semantic palette — re-tinted for the dark surface.
+     Foreground stays bright so the pill text reads on the dark bg;
+     the bg is a deep muted tone so callouts that inherit --ink
+     (e.g. .brief .disagreement) remain legible. */
+  --amber:     #e0a050;
+  --amber-bg:  #3a2a14;
+  --green:     #6ec38e;
+  --green-bg:  #1d2e25;
+  --red:       #e08070;
+  --red-bg:    #3a1f1a;
+  --blue:      #7aa8d8;
+  --blue-bg:   #1d2935;
 }
 
 * { box-sizing: border-box; }

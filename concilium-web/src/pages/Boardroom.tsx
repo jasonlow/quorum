@@ -109,8 +109,10 @@ export function Boardroom() {
         {session.agents.map(a => (
           <AgentTile
             key={a.agentId}
+            sessionId={session.id}
+            agentId={a.agentId}
             name={a.agentName}
-            ideology={a.cosVerdict ? `${a.cosVerdict.toLowerCase().replace(/_/g,' ')}` : null}
+            ideology={null}
             state={a.state}
             progress={a.progress}
             detail={
@@ -120,6 +122,10 @@ export function Boardroom() {
             }
             modelUsed={a.modelUsed}
             streamingText={a.streamingText}
+            cosVerdict={a.cosVerdict}
+            cosChallenge={a.cosChallenge}
+            cosScores={a.cosScores}
+            failedReason={a.failedReason}
           />
         ))}
       </div>
@@ -149,25 +155,9 @@ export function Boardroom() {
         </div>
       )}
 
-      {/* Per-agent CoS challenge surfacing — visible once CoS has spoken */}
-      {session.agents.some(a => a.cosChallenge) && (
-        <section style={{ marginTop: 28 }}>
-          <div className="t-h2" style={{ marginBottom: 12 }}>CoS challenges</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {session.agents.filter(a => a.cosChallenge).map(a => (
-              <div key={a.agentId} className="card" style={{ padding: 14 }}>
-                <div className="row gap-3" style={{ marginBottom: 6 }}>
-                  <div className="t-h3">{a.agentName}</div>
-                  <Pill tone={a.cosVerdict === 'PASSED' ? 'green' : 'amber'}>
-                    {a.cosVerdict?.replace(/_/g, ' ').toLowerCase()}
-                  </Pill>
-                </div>
-                <div className="t-quote">{a.cosChallenge}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* CoS challenge + rubric now surfaced inline on each tile (see AgentTile).
+          The separate "CoS challenges" section was removed — per-tile is denser
+          and lets the chair correlate the challenge with the draft it refers to. */}
 
       <div style={{ marginTop: 28 }}>
         <Btn onClick={() => { reset(); navigate('/'); }}>← Dashboard</Btn>
