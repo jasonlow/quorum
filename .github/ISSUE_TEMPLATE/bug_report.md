@@ -29,7 +29,7 @@ labels: bug
 
 ## Logs
 
-<!-- Relevant excerpts from concilium-api logs or browser console. -->
+<!-- Relevant excerpts from quorum-api logs or browser console. -->
 
 ```
 paste here

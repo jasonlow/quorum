@@ -1,0 +1,33 @@
+# Local development profile — default profile.
+# Uses DeepSeek V4 (deepseek-chat) via Spring AI's OpenAI-compatible client.
+#
+# Required env var:
+#   DEEPSEEK_API_KEY=sk-...
+#
+# DeepSeek's API is OpenAI-wire-compatible, so we configure it under
+# the standard spring.ai.openai.* namespace with an overridden base-url.
+spring:
+  ai:
+    # Tell Spring AI to expose only the OpenAI-compatible ChatModel as the
+    # primary bean. The Ollama starter is on the classpath but inactive.
+    model:
+      chat: openai
+    openai:
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:not-set}
+      chat:
+        options:
+          model: deepseek-chat        # DeepSeek V4 — used by agents + brief
+          temperature: 0.7
+
+# Per-agent / per-role model overrides. CoS uses the reasoning-tier
+# model for rigorous critique; agents and brief consolidator use the
+# default chat-tier above. Override either via env vars.
+#
+# DeepSeek model naming (May 2026):
+#   - chat-tier:      "deepseek-chat" (alias, currently routes to v4-flash)
+#                     or explicit "deepseek-v4-flash"
+#   - reasoning-tier: "deepseek-v4-pro" (or legacy alias "deepseek-reasoner")
+quorum:
+  llm:
+    cos-model: ${QUORUM_COS_MODEL:deepseek-v4-pro}

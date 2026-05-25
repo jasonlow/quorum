@@ -9,8 +9,8 @@
 
 ## How I tested it
 
-- [ ] `cd concilium-api && ./mvnw test` passes (Docker running)
-- [ ] `cd concilium-web && npm run lint && npm run build` passes
+- [ ] `cd quorum-api && ./mvnw test` passes (Docker running)
+- [ ] `cd quorum-web && npm run lint && npm run build` passes
 - [ ] Manual smoke: ran through Convene → Boardroom → Brief → Decide
 - [ ] Other:
 

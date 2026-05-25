@@ -1,6 +1,6 @@
-# Contributing to Concilium
+# Contributing to Quorum
 
-Thanks for taking an interest. Concilium is a research-grade PoC, so the bar
+Thanks for taking an interest. Quorum is a research-grade PoC, so the bar
 for contribution is "does this make the orchestration patterns clearer or more
 correct" rather than "does this add features." Both are welcome — just expect
 discussion on scope before large changes.
@@ -28,10 +28,10 @@ make up
 
 ```bash
 # Backend (requires Docker for Testcontainers)
-cd concilium-api && ./mvnw test
+cd quorum-api && ./mvnw test
 
 # Frontend
-cd concilium-web && npm run lint && npm run build
+cd quorum-web && npm run lint && npm run build
 ```
 
 Backend tests use Testcontainers + PostgreSQL — Docker Desktop / Colima must
@@ -43,7 +43,7 @@ be running, otherwise the Spring context fails to load.
 - Write a commit message that explains *why*, not just *what*. The commit log
   is the project's diary — `git log --oneline` should read like the table of
   contents for what's been built.
-- For backend changes, prefer adding a test under `concilium-api/src/test/`
+- For backend changes, prefer adding a test under `quorum-api/src/test/`
   over relying on manual verification.
 - For frontend changes, run through the boardroom flow end-to-end at least
   once before requesting review.
