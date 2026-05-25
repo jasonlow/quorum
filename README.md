@@ -1,167 +1,193 @@
-# Quorum — AI Committee Platform
+# Quorum
 
-Local-first Proof of Concept of an **AI Committee orchestrator**. Multiple
-purpose-built agents deliberate on a topic in parallel, a Chief-of-Staff
-agent quality-gates their output on a 5-axis rubric, and the human chair
-makes the final, **auditably-signed** decision.
+A small, legible multi-agent deliberation engine where every disagreement is preserved and every decision is cryptographically signed.
 
-> **Why this exists.** Most multi-agent systems hide deliberation behind a
-> single synthesized answer. Quorum makes the *disagreement* legible:
-> every agent's draft, every CoS challenge, every revision, and the chair's
-> final call are preserved in an Ed25519-signed hash chain you can verify
-> from the command line.
+![Quorum boardroom](docs/boardroom.png)
 
-## The patterns inside
+Five agents deliberate in parallel on Java 21 virtual threads. A Chief-of-Staff agent quality-gates each draft on a 5-axis rubric. Drafts get revised or shipped depending on the QA intensity dial. The chair's final decision is hashed, chained to prior records, and signed with Ed25519. Tamper anywhere — agent text, brief, document, decision — and `quorum verify` rejects the chain.
 
-If you came here to study how multi-agent orchestration is done, these are
-the load-bearing files:
+---
 
-| Pattern | File | Note |
+## requirements
+
+**hardware:** 8 GB RAM, ~4 GB disk. Linux, macOS, or Windows (WSL2). x86_64 or arm64. Backend uses ~1.5 GB heap, frontend dev server ~500 MB, Postgres ~200 MB.
+
+**software:**
+
+| | Version | Notes |
 |---|---|---|
-| **Parallel deliberation** | [`RoundRobinOrchestrator.java`](quorum-api/src/main/java/io/quorum/session/orchestrator/RoundRobinOrchestrator.java) | Java 21 virtual threads fan out N agents; phase machine drives CONVENED → DELIBERATING → BRIEFED → DECIDED. |
-| **Chief-of-Staff quality gate** | [`ChiefOfStaffService.java`](quorum-api/src/main/java/io/quorum/session/cos/ChiefOfStaffService.java) | Critic agent scores each draft on specificity / completeness / evidence / boundaries / ideology fit, returns PASSED / PASSED_WITH_NOTE / REVISION_REQUESTED / FAILED. |
-| **QA intensity dial** | [`QaIntensity.java`](quorum-api/src/main/java/io/quorum/committee/domain/QaIntensity.java) | NONE = ship first draft, SINGLE = one revision, DEEP = revise until passed or budget exhausted. |
-| **Consolidation** | [`Consolidator.java`](quorum-api/src/main/java/io/quorum/brief/service/Consolidator.java) | Reduces N agent drafts to one Brief, preserves dissent as a first-class section. |
-| **Audit hash chain** | [`DecisionSealer.java`](quorum-api/src/main/java/io/quorum/decision/service/DecisionSealer.java) + [`CanonicalPayloadBuilder.java`](quorum-api/src/main/java/io/quorum/audit/service/CanonicalPayloadBuilder.java) | Canonical payload → SHA-256 → chained to previous record → Ed25519 signed. Tamper anywhere and `quorum verify` rejects it. |
-| **Streaming UX** | [`Boardroom.tsx`](quorum-web/src/pages/Boardroom.tsx) | SSE channel pushes phase + per-agent state + token deltas to the browser; no polling. |
-| **NL → agent profile** | [`AgentGenerationService.java`](quorum-api/src/main/java/io/quorum/agent/service/AgentGenerationService.java) | Type a one-line description ("skeptical MAS compliance officer"), get a structured agent with skills, ideology, biases, boundaries. |
-| **Document grounding** | [`DocumentExtractor.java`](quorum-api/src/main/java/io/quorum/session/documents/DocumentExtractor.java) | Tika extracts text from attached PDF / DOCX / XLSX / CSV / TXT; SHA-256 of extracted text is folded into the audit chain. |
+| Java | 21 LTS | Temurin, Corretto, Zulu all fine. `sdk install java 21-tem` if you use SDKMAN. |
+| Maven | — | Use the bundled `./mvnw` wrapper. No system Maven needed. |
+| Node | 20+ | For the frontend. |
+| pnpm | latest | `corepack enable && corepack prepare pnpm@latest --activate`. |
+| Docker | Desktop or Colima | Postgres is spun up via `docker compose`. Also required for Testcontainers (backend tests). |
+| DEEPSEEK_API_KEY | env var | `export DEEPSEEK_API_KEY=sk-...` |
 
-For the field-by-field guide to creating agents and committees, see
-[**Creating agents & committees**](ai-committee-user-guide.md).
+---
 
-## Repo layout
-
-| Doc / Module | Purpose |
-|---|---|
-| `ai-committee-proposal.md` | Original product proposal |
-| `ai-committee-ux-requirements.md` | UX specification |
-| `ai-committee-business-requirements.md` | BRD with BR/FR/NFR/UCs |
-| `ai-committee-solution-architecture.md` | Target architecture (cloud) |
-| `ai-committee-poc-plan.md` | This PoC's plan, schedule, and DoD |
-| `ai-committee-user-guide.md` | How to create agents & committees |
-| `quorum-api/` | Spring Boot 3.5 backend (Java 21, Maven) |
-| `quorum-web/` | React 18 + Vite frontend |
-| `quorum-postman/` | Postman collection + environment for API testing |
-| `design_handoff_quorum/` | Hi-fi design tokens & components (reference) |
-
-## Quick start
-
-There are two LLM paths — pick one.
-
-**Option A — Ollama (no API key, fully offline):**
+## quick start
 
 ```bash
-sdk install java 21-tem && sdk use java 21-tem
-brew install --cask docker                         # or Colima
-corepack enable && corepack prepare pnpm@latest --activate
-
-brew install ollama && ollama pull llama3.1:8b
-export SPRING_PROFILES_ACTIVE=ollama
-
-make up                                            # postgres + api + web
+export DEEPSEEK_API_KEY=sk-...
+make up
 open http://localhost:5173
 ```
 
-**Option B — DeepSeek (cloud, ~$0.27 / $1.10 per M tokens):**
+`make help` lists every target. From the browser: **Convene committee** → pick a topic → optionally attach a PDF/DOCX → **Start deliberation** → watch the boardroom → read the brief → seal the decision.
 
-```bash
-# same prereqs as above, then:
-export DEEPSEEK_API_KEY=sk-...
-make up
-```
+Quorum was built and tested against DeepSeek V4, but the LLM is swappable — anything that speaks the OpenAI-compatible chat API works through Spring AI's `ChatClient`, and per-agent overrides are supported. You're welcome to point it at another frontier LLM or a self-hosted model and see how the deliberation changes.
 
-Either way, `make help` lists every target. Once the stack is up, click
-**Convene committee** → pick a topic → optionally attach a PDF/DOCX →
-**Start deliberation** → watch the boardroom light up → read the brief →
-seal a decision.
+---
 
-## Status
+## patterns
 
-| Phase | What works |
+If you came to study how the multi-agent orchestration is done, these are the load-bearing files:
+
+| Pattern | File |
 |---|---|
-| ✅ W1 — backend foundation | Spring Boot 3.5, Spring AI, JPA + Flyway, Investment Risk Committee with 5 personas, single-agent invocation, integration test |
-| ✅ W2 — orchestration | Parallel virtual-thread orchestrator, SSE streaming, Chief-of-Staff quality gate, brief consolidator |
-| ✅ W3 — backend audit (Chunk A) | `LocalKeystoreSigner` (Ed25519 PEM), `DecisionSealer` with hash chain, `POST /decide`, `quorum verify` CLI, per-agent model override |
-| ✅ W3 — frontend (Chunk B.1) | React 18 + Vite + TS: Dashboard, Convene, Boardroom (live SSE), Brief + decision panel, Session Complete with audit chain |
-| ✅ W3 — frontend polish (Chunk B.2) | Sidebar nav + theme toggle, agent library with NL-generated drafts, committee builder with NL-generated agendas, soft-delete + restore for agents and committees, token-streaming previews |
-| ✅ W4 — session context layer | Two-stage Convene (agenda + attached documents), Tika-based document extraction folded into the audit chain, committee/agent knowledge text ("standing doctrine"), per-round agent draft history with rubric-score expansion panel, QA intensity dial (NONE / SINGLE / DEEP) |
+| Parallel deliberation on virtual threads | [`RoundRobinOrchestrator.java`](quorum-api/src/main/java/io/quorum/session/orchestrator/RoundRobinOrchestrator.java) |
+| Chief-of-Staff quality gate (5-axis rubric) | [`ChiefOfStaffService.java`](quorum-api/src/main/java/io/quorum/session/cos/ChiefOfStaffService.java) |
+| QA intensity dial (`NONE` / `SINGLE` / `DEEP`) | [`QaIntensity.java`](quorum-api/src/main/java/io/quorum/committee/domain/QaIntensity.java) |
+| Consolidation that preserves dissent | [`Consolidator.java`](quorum-api/src/main/java/io/quorum/brief/service/Consolidator.java) |
+| Ed25519-signed hash chain | [`DecisionSealer.java`](quorum-api/src/main/java/io/quorum/decision/service/DecisionSealer.java) + [`CanonicalPayloadBuilder.java`](quorum-api/src/main/java/io/quorum/audit/service/CanonicalPayloadBuilder.java) |
+| SSE streaming UX (no polling) | [`Boardroom.tsx`](quorum-web/src/pages/Boardroom.tsx) |
+| Natural language → structured agent profile | [`AgentGenerationService.java`](quorum-api/src/main/java/io/quorum/agent/service/AgentGenerationService.java) |
+| Document grounding (PDF/DOCX/XLSX/CSV/TXT via Tika) | [`DocumentExtractor.java`](quorum-api/src/main/java/io/quorum/session/documents/DocumentExtractor.java) |
 
-## LLM provider
+Prompts are composed from versioned Handlebars templates under `quorum-api/src/main/resources/prompts/`.
 
-Default profile (`local`): **DeepSeek V4** via Spring AI's OpenAI-compatible
-client.
+---
 
-| Role | Model | Override env var |
-|---|---|---|
-| Default agents + brief consolidator | `deepseek-chat` (auto-routes to `deepseek-v4-flash`) | per-agent `modelOverride` |
-| Chief of Staff (reasoning-tier critique) | `deepseek-v4-pro` (legacy alias: `deepseek-reasoner`) | `QUORUM_COS_MODEL` |
+## message flow
 
-Per-agent overrides accept `deepseek-v4-flash` / `deepseek-v4-pro` (canonical)
-or `deepseek-chat` / `deepseek-reasoner` (legacy aliases). Reasoning-tier
-models skip the `temperature` parameter automatically.
+In the current Round Robin pattern, agents do not message each other directly. They each receive the same shared context — topic, attached documents, committee doctrine — at the same moment, deliberate in parallel on virtual threads, and produce independent drafts.
 
-Offline fallback (`ollama`): **Ollama** with `llama3.1:8b` running locally.
-Switch with `SPRING_PROFILES_ACTIVE=ollama`. Latency is higher and outputs
-are noticeably less crisp than DeepSeek, but no API key is required and
-nothing leaves the box.
+Two implicit messages flow during a deliberation:
 
-## Running the full stack
+1. **shared context → all agents** (broadcast, once) — every agent's prompt is composed from the same topic, document extracts, and committee-level doctrine. Agents don't see each other; they see the same world.
+2. **CoS critique → agent** (revision loop) — when the 5-axis rubric fails, the Chief of Staff sends the agent a structured challenge naming the failed axes. The agent revises against the critique. This continues up to `max-revision-rounds`, controlled by the [`QaIntensity`](quorum-api/src/main/java/io/quorum/committee/domain/QaIntensity.java) dial.
+
+After deliberation, the [`Consolidator`](quorum-api/src/main/java/io/quorum/brief/service/Consolidator.java) reads all final drafts and produces one Brief, preserving dissent as a first-class section. Speak-in-turn semantics (where agent N sees the drafts of agents 1..N-1) and the Debate pattern (turn-by-turn exchange between agents) are documented in the [`RoundRobinOrchestrator`](quorum-api/src/main/java/io/quorum/session/orchestrator/RoundRobinOrchestrator.java) docstring as a Phase 2 evolution.
+
+---
+
+## running the stack manually
+
+`make up` runs both in one shell. If you want them in separate terminals:
 
 ```bash
-# Terminal 1 — backend (auto-starts Postgres via docker compose)
+# terminal 1 — backend (auto-starts Postgres via docker compose)
 cd quorum-api && ./mvnw spring-boot:run
 
-# Terminal 2 — frontend (first time: pnpm install)
+# terminal 2 — frontend
 cd quorum-web && pnpm install && pnpm dev
-
-# Open http://localhost:5173 in a browser
 ```
 
-Then click **Convene committee** → **Start deliberation** → watch the
-boardroom light up → read the brief → seal a decision.
+---
 
-For the audit-chain verification (Bet B5):
+## sample output
+
+A single deliberation produces an agent draft, a CoS rubric, a consolidated brief, and a sealed audit envelope. Excerpts:
+
+**agent draft (Compliance Officer, partial):**
+
+```
+MAS 626 paragraph 4.3 requires that any third-party processor handling
+customer-identifying data either reside in Singapore or be covered by an
+outsourcing risk assessment approved by the Board. The proposed Frankfurt
+processor would trigger the latter…
+```
+
+**chief-of-staff rubric (one axis of five):**
+
+```json
+{
+  "axis": "evidence",
+  "score": 3,
+  "verdict": "PASSED_WITH_NOTE",
+  "note": "MAS 626 §4.3 cited correctly; recommend adding the §6.2 reporting timeline for completeness."
+}
+```
+
+**sealed audit envelope (truncated):**
+
+```json
+{
+  "sessionId": "f7e0…3c1b",
+  "sequence": 12,
+  "previousHash": "9c4a…71e0",
+  "payloadHash": "2b88…f4d6",
+  "signature": "MEUCIQDk…RAo=",
+  "publicKeyFingerprint": "SHA256:7d:21:…:af:90"
+}
+```
+
+**verifying the chain:**
+
+```bash
+$ make verify SESSION=./data/audit/session-f7e0...json
+✓ chain length: 12 records
+✓ all previousHash links match
+✓ Ed25519 signature valid (key fingerprint SHA256:7d:21:…:af:90)
+```
+
+Modify any field of any record by one byte and the verifier rejects it.
+
+---
+
+## verifying the audit chain
+
+The verifier is a separate CLI from the running app — it only reads the envelope file and the public key.
 
 ```bash
 make verify SESSION=./data/audit/session-<id>.json
 ```
 
-## Trying the document-grounded flow
-
-The W4 Convene rewrite has a Stage 2 that accepts up to 5 supporting documents
-(PDF / DOCX / XLSX / CSV / TXT, 50 KB extracted per doc, 200 KB total). The
-extracted text is injected into every agent's prompt and the CoS review, and
-each document's SHA-256 is recorded in the audit chain alongside the brief.
-
-To try it: complete Stage 1 (committee + topic), then on Stage 2 drop in any
-document you have lying around — a product spec, a regulatory PDF, an audit
-report. The agents will reference it in their deliberation. After sealing the
-decision, run the verify command above and confirm the document hashes appear
-in the envelope.
-
-## Testing with Postman
-
-A curated Postman collection lives at [`quorum-postman/`](quorum-postman/).
-Import both `.json` files into Postman, select the **Quorum Local**
-environment, and run the `Sessions` folder to drive the full demo through the
-backend. See [quorum-postman/README.md](quorum-postman/README.md) for
-details.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: small focused PRs,
-backend tests preferred over manual verification, and please discuss before
-adding orchestration patterns beyond Round Robin (the BRD has Vote, Parallel,
-Debate, and Hierarchical sketched out — they're on the roadmap).
-
-## License
-
-[MIT](LICENSE). Use it, modify it, ship it.
+The Ed25519 keypair lives in `quorum-api/data/keys/` as PEM. Swap this for KMS-backed signing in production — `LocalKeystoreSigner.java` is the swap point.
 
 ---
 
-**Built by Jason Low** · [GitHub](https://github.com/jasonlow)
+## document grounding
 
-<!-- TODO: add LinkedIn / personal site / X once decided -->
+Convene's Stage 2 accepts up to 5 supporting documents (PDF / DOCX / XLSX / CSV / TXT, 50 KB extracted per doc, 200 KB total). Apache Tika extracts the text; the extract is injected into every agent's prompt and the CoS review. Each document's SHA-256 is folded into the audit envelope, so the verifier rejects the chain if any source document changes after sealing.
 
+---
+
+## tech stack
+
+- **Backend:** Java 21, Spring Boot 3.5, Spring AI 1.0, Spring Data JPA, Flyway, PostgreSQL 16, Apache Tika 3.2, Ed25519 (java.security)
+- **Frontend:** React 18, Vite 5, TypeScript 5.6, zustand, react-router-dom
+- **LLM:** DeepSeek V4 via Spring AI's OpenAI-compatible client. Per-agent model override supported.
+- **Tooling:** Maven wrapper, pnpm, Docker Compose, Testcontainers
+
+---
+
+## repo layout
+
+```
+quorum-api/   spring boot backend
+quorum-web/   react frontend
+docs/         readme assets
+```
+
+---
+
+## acknowledgements
+
+Built on [Spring AI](https://docs.spring.io/spring-ai/reference/), [DeepSeek](https://platform.deepseek.com/), [Apache Tika](https://tika.apache.org/), and the React ecosystem. The architectural idea owes a debt to multi-agent research from the last two years; the audit-chain idea owes everything to standard transparency-log designs.
+
+---
+
+## contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: small focused PRs, backend tests preferred over manual verification, please open an issue before adding orchestration patterns beyond Round Robin.
+
+---
+
+## license
+
+[MIT](LICENSE).
+
+---
+
+Jason Low · [github.com/jasonlow](https://github.com/jasonlow)

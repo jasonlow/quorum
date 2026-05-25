@@ -39,3 +39,8 @@ logs/
 # manual testing; never committed.
 Sample Doc/
 sample-docs/
+
+# Internal planning and tooling kept locally only — not part of the public repo.
+quorum-postman/
+design_handoff_quorum/
+ai-committee-*.md
