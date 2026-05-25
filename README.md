@@ -161,9 +161,7 @@ Debate, and Hierarchical sketched out — they're on the roadmap).
 
 ---
 
-**Built by Jason Low.**
+**Built by Jason Low** · [GitHub](https://github.com/jasonlow)
 
-<!-- TODO: add public profile links once decided — e.g.
-     [GitHub](https://github.com/your-handle) ·
-     [LinkedIn](https://linkedin.com/in/your-handle) ·
-     [Site / X](https://your-site.example) -->
+<!-- TODO: add LinkedIn / personal site / X once decided -->
+
