@@ -57,6 +57,7 @@ A note on the LLM:
 
 - Type a one-line description (*"skeptical MAS compliance officer"*) and the system generates a structured profile: skills, ideology, biases, boundaries, speaking style.
 - Edit any field by hand.
+- Personal Wiki — attach curated reference text (regulations, glossaries, prior decisions) that's always prepended to the agent's prompts.
 - Per-agent LLM model override is supported.
 - Soft-delete + restore preserves audit provenance — agents referenced by sealed sessions can't be hard-deleted.
 
