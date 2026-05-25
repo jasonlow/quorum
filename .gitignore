@@ -8,6 +8,10 @@
 *.ipr
 *.iws
 
+# Agent tooling settings (local-only)
+.claude/
+CLAUDE.md
+
 # Java / Maven
 **/target/
 **/HELP.md
