@@ -1,6 +1,6 @@
 # Quorum
 
-A small, legible multi-agent deliberation engine where every disagreement is preserved and every decision is cryptographically signed.
+A small, legible multi-agent deliberation engine where every disagreement is preserved and every decision is cryptographically signed for auditability. Every agent is fully configurable — build your own with a unique persona, biases, boundaries, beliefs, and knowledge base.
 
 ![Quorum boardroom](docs/boardroom.png)
 
