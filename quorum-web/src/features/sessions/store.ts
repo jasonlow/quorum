@@ -37,6 +37,20 @@ export type AgentTile = {
   streamingText?: string;
 };
 
+/**
+ * One chronologically-ordered entry in the CoS rail's activity feed.
+ * Push-only; never mutated after creation.
+ */
+export type CosTimelineEntry = {
+  id: string;                 // unique within the session
+  at: number;                 // ms since epoch
+  agentId: string;
+  agentName: string;
+  kind: 'PASSED' | 'PASSED_WITH_NOTE' | 'REVISION_REQUESTED';
+  challenge?: string;
+  note?: string;
+};
+
 export type LiveSession = {
   id: string;
   topic: string;
@@ -53,6 +67,8 @@ export type LiveSession = {
   };
   connected: boolean;
   agents: AgentTile[];
+  /** Append-only CoS event feed, newest at the end. Powers the CoS rail. */
+  cosTimeline: CosTimelineEntry[];
 };
 
 type State = {
@@ -99,6 +115,7 @@ export const useSessionStore = create<State>((set) => ({
         state: a.state,
         progress: a.progress,
       })),
+      cosTimeline: [],
     },
   }),
 
@@ -174,6 +191,16 @@ export const useSessionStore = create<State>((set) => ({
 
   applyCosEvent: (e, kind) => set((s) => {
     if (!s.session || s.session.id !== e.sessionId) return s;
+    const now = Date.now();
+    const entry: CosTimelineEntry = {
+      id: `${e.agentId}-${kind}-${now}`,
+      at: now,
+      agentId: e.agentId,
+      agentName: e.agentName,
+      kind,
+      challenge: e.challenge,
+      note: e.note,
+    };
     return {
       session: {
         ...s.session,
@@ -183,6 +210,7 @@ export const useSessionStore = create<State>((set) => ({
           cosChallenge: e.challenge ?? e.note ?? a.cosChallenge,
           cosScores: e.scores ?? a.cosScores,
         })),
+        cosTimeline: [...s.session.cosTimeline, entry],
       },
     };
   }),

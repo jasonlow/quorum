@@ -100,6 +100,106 @@ html, body, #root { height: 100%; min-height: 100vh; background: var(--bg); }
   box-shadow: var(--shadow-1);
 }
 
+/* ──────────────────────────────────────────────────────────────────
+ * Boardroom two-column layout: agent grid on the left, CoS rail on
+ * the right. Collapses to single column under 1000px.
+ * ────────────────────────────────────────────────────────────────── */
+.boardroom-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+}
+.boardroom-main { min-width: 0; }
+@media (max-width: 1000px) {
+  .boardroom-layout { grid-template-columns: 1fr; }
+}
+
+.cos-rail {
+  position: sticky;
+  top: 20px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 18px 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+@media (max-width: 1000px) {
+  .cos-rail { position: static; max-height: none; }
+}
+.cos-rail-header {
+  display: flex; gap: 12px; align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-2);
+}
+.cos-rail-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--ink); color: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 32px;
+}
+
+.cos-progress-card {
+  padding: 12px 14px;
+  background: var(--tint);
+  border-radius: var(--radius-md);
+}
+.cos-progress-bar {
+  height: 4px;
+  background: var(--hairline);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cos-progress-bar > i {
+  display: block; height: 100%;
+  background: var(--accent);
+  transition: width 0.35s ease;
+}
+.cos-progress-counters {
+  display: flex; gap: 12px; justify-content: space-between;
+  margin-top: 12px;
+}
+.cos-progress-counters > div {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.cos-progress-counters .t-num { font-size: 16px; }
+
+.cos-section {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.cos-section > .t-tiny { margin-bottom: 2px; }
+
+.cos-intervention {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--amber);
+  border-radius: 6px;
+}
+
+.cos-timeline {
+  display: flex; flex-direction: column;
+  border-top: 1px solid var(--hairline-2);
+}
+.cos-timeline-entry {
+  display: flex; gap: 8px; align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hairline-2);
+}
+.cos-timeline-entry:last-child { border-bottom: none; }
+
+.cos-empty {
+  padding: 12px 14px;
+  background: var(--tint);
+  border-radius: var(--radius-md);
+  line-height: 1.5;
+}
+
 /* Phase indicator strip */
 .phase-strip {
   display: flex; align-items: center; gap: 20px;

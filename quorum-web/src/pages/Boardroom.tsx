@@ -5,6 +5,7 @@ import { Btn } from '@/ui/Btn';
 import { Pill } from '@/ui/Pill';
 import { PageHeader } from '@/ui/PageHeader';
 import { AgentTile } from '@/ui/AgentTile';
+import { CosRail } from '@/ui/CosRail';
 import { sessionsApi } from '@/features/sessions/api';
 import { connectSessionStream } from '@/features/sessions/stream';
 import { useSessionStore } from '@/features/sessions/store';
@@ -105,59 +106,63 @@ export function Boardroom() {
 
       {error && <div className="notice notice-err" style={{ marginBottom: 16 }}>{error}</div>}
 
-      <div className="board-grid">
-        {session.agents.map(a => (
-          <AgentTile
-            key={a.agentId}
-            sessionId={session.id}
-            agentId={a.agentId}
-            name={a.agentName}
-            ideology={null}
-            state={a.state}
-            progress={a.progress}
-            detail={
-              a.latencyMs != null
-                ? `${formatDuration(a.latencyMs)} · ${a.promptTokens}/${a.completionTokens} tok`
-                : null
-            }
-            modelUsed={a.modelUsed}
-            streamingText={a.streamingText}
-            cosVerdict={a.cosVerdict}
-            cosChallenge={a.cosChallenge}
-            cosScores={a.cosScores}
-            failedReason={a.failedReason}
-          />
-        ))}
-      </div>
-
-      {(allTerminal || session.briefReady) && (
-        <div className="cos-card">
-          <div className="row gap-3" style={{ alignItems: 'baseline' }}>
-            <div className="t-h2">Chief of Staff</div>
-            <div className="t-tiny">brief consolidation</div>
-            <div className="grow" />
-            {session.briefReady ? (
-              <Pill tone="green" withDot>
-                {session.briefReady.recommendation} · {session.briefReady.confidence}
-              </Pill>
-            ) : (
-              <Pill tone="amber" withDot>Consolidating…</Pill>
-            )}
+      <div className="boardroom-layout">
+        <div className="boardroom-main">
+          <div className="board-grid">
+            {session.agents.map(a => (
+              <AgentTile
+                key={a.agentId}
+                sessionId={session.id}
+                agentId={a.agentId}
+                name={a.agentName}
+                ideology={null}
+                state={a.state}
+                progress={a.progress}
+                detail={
+                  a.latencyMs != null
+                    ? `${formatDuration(a.latencyMs)} · ${a.promptTokens}/${a.completionTokens} tok`
+                    : null
+                }
+                modelUsed={a.modelUsed}
+                streamingText={a.streamingText}
+                cosVerdict={a.cosVerdict}
+                cosChallenge={a.cosChallenge}
+                cosScores={a.cosScores}
+                failedReason={a.failedReason}
+              />
+            ))}
           </div>
-          {session.wallClockMs != null && (
-            <div className="t-body-sm muted" style={{ marginTop: 8 }}>
-              Wall clock {formatDuration(session.wallClockMs)}
-              {session.deliberationMs != null && (
-                <> · deliberation {formatDuration(session.deliberationMs)}</>
+
+          {(allTerminal || session.briefReady) && (
+            <div className="cos-card">
+              <div className="row gap-3" style={{ alignItems: 'baseline' }}>
+                <div className="t-h2">Brief consolidation</div>
+                <div className="t-tiny">final synthesis</div>
+                <div className="grow" />
+                {session.briefReady ? (
+                  <Pill tone="green" withDot>
+                    {session.briefReady.recommendation} · {session.briefReady.confidence}
+                  </Pill>
+                ) : (
+                  <Pill tone="amber" withDot>Consolidating…</Pill>
+                )}
+              </div>
+              {session.wallClockMs != null && (
+                <div className="t-body-sm muted" style={{ marginTop: 8 }}>
+                  Wall clock {formatDuration(session.wallClockMs)}
+                  {session.deliberationMs != null && (
+                    <> · deliberation {formatDuration(session.deliberationMs)}</>
+                  )}
+                </div>
               )}
             </div>
           )}
         </div>
-      )}
 
-      {/* CoS challenge + rubric now surfaced inline on each tile (see AgentTile).
-          The separate "CoS challenges" section was removed — per-tile is denser
-          and lets the chair correlate the challenge with the draft it refers to. */}
+        {/* CoS rail — live activity feed alongside the agent grid. Hidden
+            while still on CONVENED so the roster preview isn't crowded. */}
+        {session.phase !== 'CONVENED' && <CosRail session={session} />}
+      </div>
 
       <div style={{ marginTop: 28 }}>
         <Btn onClick={() => { reset(); navigate('/'); }}>← Dashboard</Btn>
