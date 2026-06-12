@@ -57,7 +57,7 @@ public class InvestmentRiskCommitteeSeed {
                     .name(COMMITTEE_NAME)
                     .description("Multi-angle risk review of structured products")
                     .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
-                    .qaIntensity(QaIntensity.NONE)
+                    .qaIntensity(QaIntensity.DEEP)
                     .decisionRule("CHAIR_DECIDES")
                     .maxRevisionRounds(1)
                     .build());

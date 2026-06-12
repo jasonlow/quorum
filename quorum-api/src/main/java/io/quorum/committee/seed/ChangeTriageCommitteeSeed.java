@@ -60,7 +60,7 @@ public class ChangeTriageCommitteeSeed {
                     .name(COMMITTEE_NAME)
                     .description("Cross-functional prioritisation of engineering change requests across five lenses")
                     .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
-                    .qaIntensity(QaIntensity.NONE)
+                    .qaIntensity(QaIntensity.DEEP)
                     .decisionRule("CHAIR_DECIDES")
                     .maxRevisionRounds(1)
                     .build());

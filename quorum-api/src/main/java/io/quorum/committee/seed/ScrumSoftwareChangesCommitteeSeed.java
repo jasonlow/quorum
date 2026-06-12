@@ -92,7 +92,7 @@ public class ScrumSoftwareChangesCommitteeSeed {
                     .name(COMMITTEE_NAME)
                     .description("Scrum delivery team — refines and qualifies a single software change against the team's Definition of Done")
                     .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
-                    .qaIntensity(QaIntensity.NONE)
+                    .qaIntensity(QaIntensity.DEEP)
                     .decisionRule("CHAIR_DECIDES")
                     .maxRevisionRounds(1)
                     .knowledgeText(DEFINITION_OF_DONE)

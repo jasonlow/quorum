@@ -57,7 +57,7 @@ public class ClientOnboardingCommitteeSeed {
                     .name(COMMITTEE_NAME)
                     .description("Multi-perspective KYC/AML and onboarding review for new clients")
                     .orchestrationPattern(OrchestrationPattern.ROUND_ROBIN)
-                    .qaIntensity(QaIntensity.NONE)
+                    .qaIntensity(QaIntensity.DEEP)
                     .decisionRule("CHAIR_DECIDES")
                     .maxRevisionRounds(1)
                     .build());
