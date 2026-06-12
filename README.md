@@ -65,7 +65,7 @@ A note on the LLM:
 
 - Build a committee from agents in the library and set speaking order.
 - Optionally attach standing doctrine ("knowledge text") that the committee always carries into deliberations.
-- Seeded Investment Risk Committee gives you a working 5-persona example out of the box.
+- Four committees ship seeded out of the box — Investment Risk (5 agents), Client Onboarding (4), Change Triage (5), and SCRUM Software Changes (6, with a Definition of Done in `knowledge_text`).
 
 **Convene with agenda**
 
@@ -75,6 +75,8 @@ Two-stage flow:
 - Stage 2 — optionally attach up to 5 supporting documents (PDF / DOCX / XLSX / CSV / TXT).
 - Document text is injected into every agent's prompt.
 - Each document's SHA-256 is folded into the audit envelope.
+
+Paste-ready example agendas for every seeded committee live in [`docs/example-agendas/`](docs/example-agendas/) — each one is both human-readable docs and uploadable as a Stage-2 supporting document.
 
 ---
 
