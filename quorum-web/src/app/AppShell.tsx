@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { Building2, Gavel, Home, Moon, ScrollText, Sun, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTheme } from '@/lib/theme';
@@ -23,10 +23,18 @@ const SECTIONS: Array<{ heading: string; items: NavEntry[] }> = [
   },
 ];
 
+/** Pages that want the wide-stage treatment (lift the global 1280px cap).
+ *  Tested as regex against `location.pathname`. */
+const WIDE_ROUTES = [
+  /^\/sessions\/[^/]+$/,   // Boardroom (e.g. /sessions/abc-123)
+];
+
 export function AppShell() {
   const { theme, toggle } = useTheme();
   const isDusk = theme === 'dusk';
   const ToggleIcon = isDusk ? Sun : Moon;
+  const location = useLocation();
+  const isWide = WIDE_ROUTES.some((re) => re.test(location.pathname));
 
   return (
     <div className="app-shell">
@@ -71,7 +79,7 @@ export function AppShell() {
         ))}
       </aside>
 
-      <main className="app-stage">
+      <main className={`app-stage${isWide ? ' app-stage--wide' : ''}`}>
         <Outlet />
       </main>
     </div>

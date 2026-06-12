@@ -64,6 +64,14 @@ html, body, #root { height: 100%; min-height: 100vh; background: var(--bg); }
   min-width: 0;
 }
 
+/* Boardroom (and any other page that opts in) lifts the global stage cap
+ * so the agent grid + CoS rail can use the full viewport on wide monitors.
+ * Still gently bounded so 4K+ doesn't look silly — the agent grid auto-fills
+ * tiles within whatever width it gets. */
+.app-stage--wide {
+  max-width: 1800px;
+}
+
 /* On narrow screens, collapse the sidebar to a strip. */
 @media (max-width: 720px) {
   .app-shell {
